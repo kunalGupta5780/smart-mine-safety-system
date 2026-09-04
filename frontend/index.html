@@ -1,0 +1,179 @@
+\<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Smart Mine Safety System</title>
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 30px;
+            background: #f4f6f8;
+            color: #222;
+        }
+
+        h1 {
+            text-align: center;
+            margin-bottom: 10px;
+        }
+
+        #overall-status {
+            text-align: center;
+            font-size: 22px;
+            font-weight: bold;
+            margin-bottom: 30px;
+        }
+
+        #nodes {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            max-width: 1100px;
+            margin: auto;
+        }
+
+        .node {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+
+        .node h2 {
+            margin-top: 0;
+        }
+
+        .status {
+            font-size: 18px;
+            font-weight: bold;
+            margin: 15px 0;
+        }
+
+        .safe {
+            color: green;
+        }
+
+        .warning {
+            color: orange;
+        }
+
+        .danger {
+            color: red;
+        }
+
+        .reading {
+            margin: 8px 0;
+        }
+
+        #last-updated {
+            text-align: center;
+            margin-top: 25px;
+            color: #666;
+        }
+    </style>
+</head>
+
+<body>
+
+    <h1>⛏️ Smart Mine Safety System</h1>
+
+    <div id="overall-status">
+        Loading mine status...
+    </div>
+
+    <div id="nodes"></div>
+
+    <div id="last-updated">
+        Waiting for sensor data...
+    </div>
+
+    <script>
+        async function loadSensorData() {
+
+            try {
+                const response = await fetch("/sensor-data");
+
+                const data = await response.json();
+
+                const nodesContainer = document.getElementById("nodes");
+
+                nodesContainer.innerHTML = "";
+
+                let overallRisk = "SAFE";
+
+                for (const nodeId in data) {
+
+                    const node = data[nodeId];
+
+                    if (node.risk === "DANGER") {
+                        overallRisk = "DANGER";
+                    }
+                    else if (
+                        node.risk === "WARNING" &&
+                        overallRisk !== "DANGER"
+                    ) {
+                        overallRisk = "WARNING";
+                    }
+
+                    const nodeCard = document.createElement("div");
+
+                    nodeCard.className = "node";
+
+                    nodeCard.innerHTML = `
+                        <h2>${node.node_id}</h2>
+
+                        <p><strong>Location:</strong> ${node.location}</p>
+
+                        <div class="status ${node.risk.toLowerCase()}">
+                            Status: ${node.risk}
+                        </div>
+
+                        <div class="reading">
+                            🧪 Gas: ${node.gas}
+                        </div>
+
+                        <div class="reading">
+                            🌡️ Temperature: ${node.temperature}°C
+                        </div>
+
+                        <div class="reading">
+                            💧 Humidity: ${node.humidity}%
+                        </div>
+                    `;
+
+                    nodesContainer.appendChild(nodeCard);
+                }
+
+                const overallStatus =
+                    document.getElementById("overall-status");
+
+                overallStatus.innerHTML =
+                    `Overall Mine Status: ${overallRisk}`;
+
+                overallStatus.className =
+                    overallRisk.toLowerCase();
+
+                document.getElementById("last-updated").innerText =
+                    "Last updated: " + new Date().toLocaleTimeString();
+
+            }
+            catch (error) {
+
+                console.error("Error loading sensor data:", error);
+
+                document.getElementById("overall-status").innerText =
+                    "Unable to connect to backend";
+
+            }
+        }
+
+        loadSensorData();
+
+        setInterval(loadSensorData, 1000);
+    </script>
+
+</body>
+</html>
