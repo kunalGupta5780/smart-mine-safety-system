@@ -1,5 +1,6 @@
 import random
 import time
+import requests
 from datetime import datetime
 
 nodes = [
@@ -28,13 +29,10 @@ nodes = [
 
 while True:
     for node in nodes:
-
-        # Gradually change sensor values
         node["gas"] += random.randint(-3, 3)
         node["temperature"] += random.randint(-1, 1)
         node["humidity"] += random.randint(-2, 2)
 
-        # Keep values within reasonable ranges
         node["gas"] = max(10, min(60, node["gas"]))
         node["temperature"] = max(20, min(40, node["temperature"]))
         node["humidity"] = max(40, min(90, node["humidity"]))
@@ -48,7 +46,6 @@ while True:
             "timestamp": datetime.now().isoformat()
         }
 
-        # Risk detection
         if reading["gas"] > 40 or reading["temperature"] > 33:
             risk = "DANGER"
         elif reading["gas"] > 30 or reading["temperature"] > 30:
@@ -59,6 +56,13 @@ while True:
         reading["risk"] = risk
 
         print(reading)
+
+        response = requests.post(
+            "http://127.0.0.1:8000/sensor-data",
+            json=reading
+        )
+
+        print("Backend:", response.json())
 
     print("-" * 80)
     time.sleep(1)

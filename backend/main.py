@@ -1,0 +1,36 @@
+from fastapi import FastAPI
+
+app = FastAPI()
+
+latest_readings = {}
+
+
+@app.get("/")
+def home():
+    return {"message": "Smart Mine Safety System backend is running!"}
+
+
+@app.post("/sensor-data")
+def receive_sensor_data(data: dict):
+
+    if data["gas"] > 40 or data["temperature"] > 33:
+        risk = "DANGER"
+    elif data["gas"] > 30 or data["temperature"] > 30:
+        risk = "WARNING"
+    else:
+        risk = "SAFE"
+
+    data["risk"] = risk
+
+    latest_readings[data["node_id"]] = data
+
+    return {
+        "message": "Sensor data received",
+        "data": data,
+        "risk": risk
+    }
+
+
+@app.get("/sensor-data")
+def get_sensor_data():
+    return latest_readings
