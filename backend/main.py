@@ -24,9 +24,9 @@ def home():
 def receive_sensor_data(data: dict):
 
     # Risk detection
-    if data["gas"] > 40 or data["temperature"] > 33:
+    if data["co"] > 40 or data["temperature"] > 33:
         risk = "DANGER"
-    elif data["gas"] > 30 or data["temperature"] > 30:
+    elif data["co"] > 30 or data["temperature"] > 30:
         risk = "WARNING"
     else:
         risk = "SAFE"
