@@ -480,9 +480,22 @@
                 let warningNodes = [];
 
 
-                for (const nodeId in data) {
+                /*
+                    Sort tunnel nodes by their ID so the
+                    dashboard always displays:
 
-                    const node = data[nodeId];
+                    01 → 02 → 03 → 04
+                */
+
+                const sortedNodes =
+                    Object.values(data).sort((a, b) => {
+
+                        return a.node_id.localeCompare(b.node_id);
+
+                    });
+
+
+                for (const node of sortedNodes) {
 
 
                     if (node.risk === "DANGER") {
