@@ -242,6 +242,12 @@
             color: #e8edf2;
         }
 
+        .alert-reasons {
+            margin-top: 6px;
+            color: #c4ced8;
+            font-size: 12px;
+        }
+
         .system-info {
             display: grid;
             grid-template-columns: 1fr 1fr;
@@ -502,7 +508,7 @@
 
                         overallRisk = "DANGER";
 
-                        dangerNodes.push(node.node_id);
+                        dangerNodes.push(node);
 
                     }
 
@@ -513,7 +519,7 @@
 
                         overallRisk = "WARNING";
 
-                        warningNodes.push(node.node_id);
+                        warningNodes.push(node);
 
                     }
 
@@ -765,7 +771,10 @@
                     alerts.innerHTML += `
                         <div class="alert">
                             <strong>🚨 DANGER:</strong>
-                            ${node} requires immediate attention.
+                            ${node.node_id} requires immediate attention.
+                            <div class="alert-reasons">
+                                ${node.risk_reasons.join(" • ")}
+                            </div>
                         </div>
                     `;
 
@@ -777,7 +786,10 @@
                     alerts.innerHTML += `
                         <div class="alert">
                             <strong>⚠️ WARNING:</strong>
-                            ${node} requires monitoring.
+                            ${node.node_id} requires monitoring.
+                            <div class="alert-reasons">
+                                ${node.risk_reasons.join(" • ")}
+                            </div>
                         </div>
                     `;
 
