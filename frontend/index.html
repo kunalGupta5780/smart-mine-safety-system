@@ -183,6 +183,8 @@ h1{margin:0;font-size:28px;letter-spacing:1px}
     </div>
     <div class="live-wrap">
         <button id="alarm-button" class="alarm-button" type="button">🔔 ENABLE ALARM</button>
+        <button id="voice-button" class="alarm-button" type="button">🔊 ENABLE VOICE</button>
+        <div id="voice-indicator" class="alarm-button" style="opacity:.65;cursor:default;">🔊 VOICE ALERT INACTIVE</div>
         <div class="live"><span class="live-dot"></span>LIVE MONITORING</div>
         <div class="clock"><strong id="clock-time">--:--:--</strong><span id="clock-date">--</span></div>
     </div>
@@ -284,6 +286,11 @@ let activeModalNode = null;
 let alarmEnabled = false;
 let audioContext = null;
 let alarmInterval = null;
+let speechSupported = 'speechSynthesis' in window;
+let voiceEnabled = false;
+let lastVoiceRisk = {};
+let voiceDangerInterval = null;
+let voiceWarningTimeout = null;
 let personnelTunnel = 'MINE_TUNNEL_01';
 
 function toggleAlarm(){
@@ -355,6 +362,149 @@ function updateAlarmState(){
         playDangerAlarm();
     }, 900);
 }
+
+
+function updateVoiceIndicator(active){
+    const indicator = document.getElementById('voice-indicator');
+    const button = document.getElementById('voice-button');
+
+    if(indicator){
+        indicator.textContent = active ? '🔊 VOICE ALERT ACTIVE' : '🔊 VOICE ALERT INACTIVE';
+        indicator.style.opacity = active ? '1' : '.65';
+        indicator.style.borderColor = active ? 'rgba(255,88,88,.55)' : '#40515f';
+        indicator.style.color = active ? 'var(--red)' : '#dfe8ef';
+        indicator.style.background = active ? 'rgba(255,88,88,.08)' : '#101923';
+    }
+
+    if(button){
+        button.textContent = voiceEnabled ? '🔇 DISABLE VOICE' : '🔊 ENABLE VOICE';
+        button.classList.toggle('enabled', voiceEnabled);
+    }
+}
+
+function speakVoice(message){
+    if(!speechSupported || !voiceEnabled) return;
+
+    window.speechSynthesis.cancel();
+
+    const utterance = new SpeechSynthesisUtterance(message);
+    utterance.rate = 0.92;
+    utterance.pitch = 1;
+    utterance.volume = 1;
+
+    window.speechSynthesis.speak(utterance);
+}
+
+function stopVoiceAlerts(){
+    if(voiceDangerInterval){
+        clearInterval(voiceDangerInterval);
+        voiceDangerInterval = null;
+    }
+
+    if(voiceWarningTimeout){
+        clearTimeout(voiceWarningTimeout);
+        voiceWarningTimeout = null;
+    }
+
+    if(speechSupported) window.speechSynthesis.cancel();
+
+    updateVoiceIndicator(false);
+}
+
+function getSelectedVoiceNode(){
+    if(!personnelTunnel) return null;
+    return latestNodes[personnelTunnel] || null;
+}
+
+function playDangerVoice(){
+    if(!speechSupported || !voiceEnabled) return;
+    speakVoice('Danger ahead. Evacuate.');
+    updateVoiceIndicator(true);
+}
+
+function playWarningVoice(){
+    if(!speechSupported || !voiceEnabled) return;
+    speakVoice('Warning. Proceed with caution.');
+    updateVoiceIndicator(true);
+
+    if(voiceWarningTimeout) clearTimeout(voiceWarningTimeout);
+
+    voiceWarningTimeout = setTimeout(() => {
+        voiceWarningTimeout = null;
+        if(!voiceDangerInterval) updateVoiceIndicator(false);
+    }, 4500);
+}
+
+function updateVoiceAlerts(){
+    if(!speechSupported) return;
+
+    const targetNode = getSelectedVoiceNode();
+
+    // Voice alerts are targeted to the selected personnel tunnel.
+    if(!voiceEnabled || !targetNode){
+        stopVoiceAlerts();
+        return;
+    }
+
+    if(targetNode.risk === 'DANGER'){
+        if(!voiceDangerInterval){
+            playDangerVoice();
+
+            voiceDangerInterval = setInterval(() => {
+                const currentTarget = getSelectedVoiceNode();
+
+                if(!voiceEnabled || !currentTarget || currentTarget.risk !== 'DANGER'){
+                    stopVoiceAlerts();
+                    return;
+                }
+
+                playDangerVoice();
+            }, 6000);
+        }
+    }else{
+        if(voiceDangerInterval){
+            clearInterval(voiceDangerInterval);
+            voiceDangerInterval = null;
+        }
+
+        if(speechSupported) window.speechSynthesis.cancel();
+
+        if(targetNode.risk === 'WARNING'){
+            // Speak only when this selected tunnel ENTERS WARNING.
+            if(lastVoiceRisk[targetNode.node_id] !== 'WARNING'){
+                playWarningVoice();
+            }
+        }else{
+            updateVoiceIndicator(false);
+        }
+    }
+
+    lastVoiceRisk = {[targetNode.node_id]: targetNode.risk};
+}
+
+function toggleVoice(){
+    if(!speechSupported){
+        console.warn('Browser speech synthesis is not supported.');
+        return;
+    }
+
+    if(voiceEnabled){
+        voiceEnabled = false;
+        stopVoiceAlerts();
+    }else{
+        voiceEnabled = true;
+        updateVoiceIndicator(false);
+
+        // This click also satisfies browsers that require user interaction
+        // before speech playback is allowed.
+        speakVoice('Voice alerts enabled.');
+        updateVoiceAlerts();
+    }
+
+    updateVoiceIndicator(false);
+}
+
+document.getElementById('voice-button').addEventListener('click', toggleVoice);
 
 document.getElementById('alarm-button').addEventListener('click', toggleAlarm);
 
@@ -428,8 +578,11 @@ function populatePersonnelSelector(sortedNodes){
 
 document.getElementById('personnel-tunnel').addEventListener('change', function(){
     personnelTunnel = this.value;
+    lastVoiceRisk = {};
+    stopVoiceAlerts();
     updatePersonnelUI();
     updateAlarmState();
+    updateVoiceAlerts();
     if(activeModalNode) openDetails(activeModalNode.node_id);
 });
 
@@ -648,6 +801,7 @@ async function loadSensorData(){
         renderNodes(sortedNodes);
         populatePersonnelSelector(sortedNodes);
         renderAlerts(sortedNodes);
+        updateVoiceAlerts(sortedNodes);
 
         updatePersonnelUI();
         updateAlarmState();
@@ -662,6 +816,7 @@ async function loadSensorData(){
     }
 }
 
+updateVoiceIndicator(false);
 updateClock();
 setInterval(updateClock,1000);
 loadSensorData();
