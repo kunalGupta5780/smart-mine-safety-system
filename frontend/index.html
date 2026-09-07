@@ -205,7 +205,7 @@ h1{margin:0;font-size:28px;letter-spacing:1px}
 
 <section class="bottom-grid">
     <div class="panel">
-        <div class="panel-title"><h2>⚠️ Risk Alerts</h2><span class="muted" id="alert-count">0 active</span></div>
+        <div class="panel-title"><h2>⚠️ Risk Alerts</h2><div style="display:flex;align-items:center;gap:10px;"><span class="muted" id="alert-count">0 active</span><button class="node-open" id="view-incidents-button" type="button">🕒 RECENT INCIDENTS →</button></div></div>
         <div id="alerts"><div class="alert"><strong>System:</strong> Monitoring mine sensor network...</div></div>
     </div>
     <div class="panel">
@@ -272,6 +272,27 @@ h1{margin:0;font-size:28px;letter-spacing:1px}
   </div>
 </div>
 
+<div id="incident-modal" class="modal-backdrop" aria-hidden="true">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="incident-modal-title">
+        <div class="modal-head">
+            <div>
+                <h3 id="incident-modal-title">🕒 Recent Incidents</h3>
+                <div class="modal-sub">Recorded safety events</div>
+            </div>
+            <button class="close-btn" id="incident-modal-close">✕</button>
+        </div>
+        <div class="modal-body">
+            <div id="incident-history" style="max-height:60vh;overflow:auto;">
+                <div class="alert"><strong>System:</strong> No incidents recorded yet.</div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <span class="muted" id="incident-count" style="margin-right:auto;align-self:center;">0 recorded</span>
+            <button class="close-btn" id="incident-modal-close-2">CLOSE</button>
+        </div>
+    </div>
+</div>
+
 <script>
 const thresholdState = {
     co: {warning: 30, danger: 40, higherIsWorse: true},
@@ -283,6 +304,8 @@ const thresholdState = {
 
 let latestNodes = {};
 let activeModalNode = null;
+let incidentHistory = [];
+let previousRisk = {};
 let alarmEnabled = false;
 let audioContext = null;
 let alarmInterval = null;
@@ -736,12 +759,84 @@ function renderNodes(sortedNodes){
             ${sensorHtml('Smoke Density','🌫️','smoke_density',node.smoke_density,'%')}
             ${sensorHtml('Air Flow','💨','air_flow',node.air_flow,'m/s')}
             <div class="node-footer">
-                <div class="risk-score">Risk Score: <strong class="${scoreClass(node.risk)}">${Math.min(node.risk_score || 0, 5)} / 5</strong></div>
+                <div class="risk-score">Risk Score: <strong class="${scoreClass(node.risk)}">${Math.min(node.risk_score || 0, 5)} / 5</strong><div style="margin-top:4px;font-size:10px;color:#7f8c99;">${(node.risk_reasons || []).filter(r => r !== 'No abnormal conditions detected').length} risk factors detected</div></div>
                 <button class="node-open" onclick="openDetails('${node.node_id}')">View Details →</button>
             </div>`;
         container.appendChild(card);
     });
 }
+
+function detectIncidents(sortedNodes){
+    sortedNodes.forEach(node => {
+        const oldRisk = previousRisk[node.node_id];
+        const newRisk = node.risk;
+
+        if (
+            (newRisk === 'WARNING' || newRisk === 'DANGER') &&
+            newRisk !== oldRisk
+        ) {
+            const factors = (node.risk_reasons || [])
+                .filter(r => r !== 'No abnormal conditions detected')
+                .join(' + ');
+
+            incidentHistory.unshift({
+                time: new Date().toLocaleTimeString(),
+                node_id: node.node_id,
+                location: node.location,
+                risk: newRisk,
+                factors: factors || 'Abnormal conditions detected'
+            });
+
+            incidentHistory = incidentHistory.slice(0, 8);
+        }
+
+        previousRisk[node.node_id] = newRisk;
+    });
+}
+
+function renderIncidentHistory(){
+    const container = document.getElementById('incident-history');
+    const count = document.getElementById('incident-count');
+
+    count.textContent = `${incidentHistory.length} recorded`;
+
+    if(!incidentHistory.length){
+        container.innerHTML = '<div class="alert"><strong>System:</strong> No incidents recorded yet.</div>';
+        return;
+    }
+
+    container.innerHTML = incidentHistory.map(incident => `
+        <div class="alert">
+            <div class="alert-line">
+                <strong class="${incident.risk === 'DANGER' ? 'status-danger' : 'status-warning'}">
+                    ${incident.risk === 'DANGER' ? '🚨 DANGER' : '⚠️ WARNING'}: ${incident.node_id}
+                </strong>
+                <span>${incident.time}</span>
+            </div>
+            <div class="alert-reasons">${incident.factors}</div>
+        </div>
+    `).join('');
+}
+
+function openRecentIncidents(){
+    renderIncidentHistory();
+    const modal = document.getElementById('incident-modal');
+    modal.classList.add('open');
+    modal.setAttribute('aria-hidden','false');
+}
+
+function closeRecentIncidents(){
+    const modal = document.getElementById('incident-modal');
+    modal.classList.remove('open');
+    modal.setAttribute('aria-hidden','true');
+}
+
+document.getElementById('view-incidents-button').addEventListener('click', openRecentIncidents);
+document.getElementById('incident-modal-close').addEventListener('click', closeRecentIncidents);
+document.getElementById('incident-modal-close-2').addEventListener('click', closeRecentIncidents);
+document.getElementById('incident-modal').addEventListener('click', e=>{
+    if(e.target.id==='incident-modal') closeRecentIncidents();
+});
 
 function renderAlerts(sortedNodes){
     const alerts = document.getElementById('alerts');
@@ -800,6 +895,8 @@ async function loadSensorData(){
 
         renderNodes(sortedNodes);
         populatePersonnelSelector(sortedNodes);
+        detectIncidents(sortedNodes);
+        renderIncidentHistory();
         renderAlerts(sortedNodes);
         updateVoiceAlerts(sortedNodes);
 
