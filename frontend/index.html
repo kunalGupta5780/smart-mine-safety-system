@@ -99,6 +99,17 @@ h1{margin:0;font-size:28px;letter-spacing:1px}
 .status-safe{color:var(--green)}
 .status-warning{color:var(--yellow)}
 .status-danger{color:var(--red)}
+#detail-analysis .status-safe{
+    color:var(--green) !important;
+}
+
+#detail-analysis .status-warning{
+    color:var(--yellow) !important;
+}
+
+#detail-analysis .status-danger{
+    color:var(--red) !important;
+}
 .status-badge{padding:7px 10px;border-radius:8px;font-size:11px;font-weight:800}
 .status-badge.status-safe{background:rgba(49,215,142,.11)}
 .status-badge.status-warning{background:rgba(255,189,61,.11)}
@@ -786,8 +797,8 @@ function openDetails(nodeId){
 
     document.getElementById('detail-analysis').innerHTML = [
         ['Risk level', `<span class="${node.risk==='DANGER'?'status-danger':node.risk==='WARNING'?'status-warning':'status-safe'}">${node.risk}</span>`],
-        ['Risk score', `<span class="${scoreClass(node.risk)}">${Math.min(node.risk_score || 0, 5)} / 5</span>`],
-        ['Status', node.risk==='DANGER'?'Immediate attention required':node.risk==='WARNING'?'Requires monitoring':'All systems normal'],
+        ['Risk score', `<span class="${node.risk==='DANGER'?'status-danger':node.risk==='WARNING'?'status-warning':'status-safe'}">${Math.min(node.risk_score || 0, 5)} / 5</span>`],
+        ['Status', `<span style="color:${node.risk==='DANGER'?'var(--red)':node.risk==='WARNING'?'var(--yellow)':'var(--green)'}">${node.risk==='DANGER'?'Immediate attention required':node.risk==='WARNING'?'Requires monitoring':'All systems normal'}</span>`],
         ['Updated', new Date().toLocaleTimeString()]
     ].map(([k,v])=>`<div class="detail-row"><span>${k}</span><strong>${v}</strong></div>`).join('');
 
