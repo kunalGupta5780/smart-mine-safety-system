@@ -20,6 +20,39 @@
 }
 *{box-sizing:border-box}
 html{scroll-behavior:smooth}
+.view-hidden{
+    display:none !important;
+}
+.cr-alert-layout{
+    display:grid;
+    grid-template-columns:minmax(0,1.2fr) minmax(360px,.8fr);
+    gap:16px;
+    align-items:start;
+}
+#cr-priority-alerts{
+    display:grid;
+    grid-template-columns:repeat(3,1fr);
+    gap:12px;
+}
+
+#cr-priority-alerts .alert{
+    margin:0;
+    padding:14px;
+    background:var(--panel2);
+    border:1px solid var(--border);
+    border-radius:12px;
+    min-height:130px;
+}
+
+#cr-priority-alerts .node-open{
+    margin-top:10px;
+}
+
+@media(max-width:900px){
+    #cr-priority-alerts{
+        grid-template-columns:1fr;
+    }
+}
 body{
     margin:0;
     font-family:Inter,Segoe UI,Arial,sans-serif;
@@ -182,6 +215,7 @@ h1{margin:0;font-size:28px;letter-spacing:1px}
         <div><h1>SMART MINE SAFETY SYSTEM</h1><div class="subtitle">AI-Powered Underground Mine Monitoring & Rescue</div></div>
     </div>
     <div class="live-wrap">
+        <button id="control-room-button" class="alarm-button" type="button">🖥️ CONTROL ROOM</button>
         <button id="alarm-button" class="alarm-button" type="button">🔔 ENABLE ALARM</button>
         <button id="voice-button" class="alarm-button" type="button">🔊 ENABLE VOICE</button>
         <div id="voice-indicator" class="alarm-button" style="opacity:.65;cursor:default;">🔊 VOICE ALERT INACTIVE</div>
@@ -216,6 +250,65 @@ h1{margin:0;font-size:28px;letter-spacing:1px}
             <div class="info-box"><div class="info-label">UPDATE RATE</div><div class="info-value">1 SECOND</div></div>
             <div class="info-box"><div class="info-label">DATA SOURCE</div><div class="info-value">SIMULATED SENSORS</div></div>
             <div class="info-box"><div class="info-label">LAST UPDATED</div><div class="info-value" id="last-updated">--</div></div>
+        </div>
+    </div>
+</section>
+<section id="control-room-view" class="view-hidden">
+    <div class="panel">
+        <div class="panel-title">
+            <h2>🖥️ CONTROL ROOM</h2>
+            <span class="muted">Central Monitoring & Response</span>
+        </div>
+
+        <div class="top-grid">
+            <div class="stat-card">
+                <div class="stat-label">Tunnels Monitored</div>
+                <div class="stat-value" id="cr-tunnel-count">0</div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-label">Danger Zones</div>
+                <div class="stat-value" id="cr-danger-count">0</div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-label">Warning Zones</div>
+                <div class="stat-value" id="cr-warning-count">0</div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-label">System Status</div>
+                <div class="stat-value" id="cr-system-status">SAFE</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="panel">
+    <div class="panel-title">
+        <h2>🚨 PRIORITY ALERTS</h2>
+    </div>
+
+    <div id="cr-priority-alerts">
+        <div class="muted">No active priority alerts.</div>
+    </div>
+</div>
+
+    <div class="panel">
+        <div class="panel-title">
+            <h2>⌚ WORKER WRISTBAND SIMULATION</h2>
+            <span class="muted">Prototype only</span>
+        </div>
+        <div id="cr-wristband-status">
+            <div class="muted">Waiting for live sensor data...</div>
+        </div>
+    </div>
+
+    <div class="panel">
+        <div class="panel-title">
+            <h2>🛟 RESCUE RESPONSE</h2>
+        </div>
+        <div id="cr-rescue-response">
+            <div class="muted">No rescue action required.</div>
         </div>
     </div>
 </section>
@@ -303,6 +396,7 @@ const thresholdState = {
 };
 
 let latestNodes = {};
+let controlRoomMode = false;
 let activeModalNode = null;
 let incidentHistory = [];
 let previousRisk = {};
@@ -528,8 +622,9 @@ function toggleVoice(){
 }
 
 document.getElementById('voice-button').addEventListener('click', toggleVoice);
-
 document.getElementById('alarm-button').addEventListener('click', toggleAlarm);
+document.getElementById('control-room-button')
+    .addEventListener('click', toggleControlRoom);
 
 function getSensorLevel(key, value){
     const rule = thresholdState[key];
@@ -866,9 +961,172 @@ function setAverage(id, values, digits=1, suffix=''){
 
 function updateClock(){
     const now = new Date();
-    document.getElementById('clock-time').textContent = now.toLocaleTimeString();
-    document.getElementById('clock-date').textContent = now.toLocaleDateString(undefined,{day:'2-digit',month:'short',year:'numeric'});
+
+    document.getElementById('clock-time').textContent =
+        now.toLocaleTimeString();
+
+    document.getElementById('clock-date').textContent =
+        now.toLocaleDateString(undefined,{
+            day:'2-digit',
+            month:'short',
+            year:'numeric'
+        });
 }
+
+function toggleControlRoom(){
+    controlRoomMode = !controlRoomMode;
+
+    const sections = [
+        document.querySelector('.top-grid'),
+        document.getElementById('nodes'),
+        document.querySelector('.bottom-grid'),
+        document.querySelector('.personnel-panel')
+    ];
+
+    sections.forEach(section => {
+        if(section){
+            section.classList.toggle('view-hidden', controlRoomMode);
+        }
+    });
+
+    const controlRoom = document.getElementById('control-room-view');
+
+    if(controlRoom){
+        controlRoom.classList.toggle('view-hidden', !controlRoomMode);
+    }
+
+    const button = document.getElementById('control-room-button');
+
+    if(button){
+        button.textContent = controlRoomMode
+            ? '← MINE DASHBOARD'
+            : '🖥️ CONTROL ROOM';
+    }
+}
+
+function updateControlRoom(nodes){
+    const tunnelCount = nodes.length;
+    const dangerNodes = nodes.filter(node => node.risk === 'DANGER');
+    const warningNodes = nodes.filter(node => node.risk === 'WARNING');
+
+    document.getElementById('cr-tunnel-count').textContent = tunnelCount;
+    document.getElementById('cr-danger-count').textContent = dangerNodes.length;
+    document.getElementById('cr-danger-count').style.color = 'var(--red)';
+
+    document.getElementById('cr-warning-count').textContent = warningNodes.length;
+    document.getElementById('cr-warning-count').style.color = 'var(--yellow)';
+
+    const systemStatus = document.getElementById('cr-system-status');
+
+    if(dangerNodes.length > 0){
+    systemStatus.textContent = 'DANGER';
+    systemStatus.style.color = 'var(--red)';
+} else if(warningNodes.length > 0){
+    systemStatus.textContent = 'WARNING';
+    systemStatus.style.color = 'var(--yellow)';
+} else {
+    systemStatus.textContent = 'SAFE';
+    systemStatus.style.color = 'var(--green)';
+}
+    const priorityAlerts = document.getElementById('cr-priority-alerts');
+
+const riskNodes = nodes.filter(
+    node => node.risk === 'DANGER' || node.risk === 'WARNING'
+);
+
+if(riskNodes.length === 0){
+    priorityAlerts.innerHTML =
+        '<div class="muted">No active priority alerts.</div>';
+} else {
+    priorityAlerts.innerHTML = riskNodes.map(node => `
+        <div class="alert" style="margin-bottom:10px;border-left:4px solid ${node.risk === 'DANGER' ? 'var(--red)' : 'var(--yellow)'};">
+            <strong style="color:${node.risk === 'DANGER'
+                ? 'var(--red)'
+                : 'var(--yellow)'};">
+                ${node.risk} — ${node.location}
+            </strong>
+
+            <div class="alert-reasons">
+                ${node.risk_reasons.join(' • ')}
+            </div>
+
+            <button
+    class="node-open"
+    type="button"
+    onclick="openDetails('${node.node_id}')">
+    VIEW DETAILS →
+</button>
+        </div>
+    `).join('');
+}
+const wristbandStatus = document.getElementById('cr-wristband-status');
+
+const workerNode = nodes.find(node => node.node_id === personnelTunnel);
+
+if(workerNode){
+    let vibration = 'NORMAL';
+    let message = 'No warning. Worker can continue normally.';
+
+    if(workerNode.risk === 'DANGER'){
+        vibration = '🔴 EMERGENCY VIBRATION';
+        message = 'Immediate evacuation warning for worker.';
+    } else if(workerNode.risk === 'WARNING'){
+        vibration = '🟡 CAUTION VIBRATION';
+        message = 'Warning detected. Worker should stay alert.';
+    } else {
+        vibration = '🟢 NORMAL';
+        message = 'Conditions are currently safe.';
+    }
+
+    wristbandStatus.innerHTML = `
+        <div class="alert">
+            <strong>Worker W07</strong>
+            <div class="alert-reasons">
+                Location: ${workerNode.location}<br>
+                Wristband: ${vibration}<br>
+                ${message}
+            </div>
+        </div>
+    `;
+}
+const rescueResponse = document.getElementById('cr-rescue-response');
+
+if(dangerNodes.length > 0){
+    const tunnel = dangerNodes[0];
+
+    rescueResponse.innerHTML = `
+        <div class="alert">
+            <strong style="color:var(--red);">
+                🚨 EMERGENCY RESPONSE REQUIRED
+            </strong>
+            <div class="alert-reasons">
+                Affected Location: ${tunnel.location}<br>
+                Action: Evacuate workers and deploy rescue team.<br>
+                Reason: ${tunnel.risk_reasons.join(' • ')}
+            </div>
+        </div>
+    `;
+} else if(warningNodes.length > 0){
+    const tunnel = warningNodes[0];
+
+    rescueResponse.innerHTML = `
+        <div class="alert">
+            <strong style="color:var(--yellow);">
+                ⚠️ PREPARE RESPONSE
+            </strong>
+            <div class="alert-reasons">
+                Affected Location: ${tunnel.location}<br>
+                Action: Monitor tunnel and keep rescue team ready.
+            </div>
+        </div>
+    `;
+} else {
+    rescueResponse.innerHTML =
+        '<div class="muted">No rescue action required.</div>';
+}
+}
+
+
 
 async function loadSensorData(){
     try{
@@ -899,6 +1157,10 @@ async function loadSensorData(){
         renderIncidentHistory();
         renderAlerts(sortedNodes);
         updateVoiceAlerts(sortedNodes);
+
+        if(controlRoomMode){
+            updateControlRoom(sortedNodes);
+}
 
         updatePersonnelUI();
         updateAlarmState();
