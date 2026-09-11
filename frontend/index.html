@@ -1215,6 +1215,33 @@ async function loadSensorData(){
         sortedNodes.forEach(node => {
             latestNodes[node.node_id] = node;
         });
+        const mineDanger = sortedNodes.some(node => node.risk === 'DANGER');
+const mineWarning = sortedNodes.some(node => node.risk === 'WARNING');
+
+const overallStatus = document.getElementById('overall-status');
+const overallBadge = document.getElementById('overall-badge');
+
+const mineRisk = mineDanger
+    ? 'DANGER'
+    : mineWarning
+        ? 'WARNING'
+        : 'SAFE';
+
+overallStatus.textContent = mineRisk;
+overallStatus.className = 'mine-status-text ' +
+    (mineRisk === 'DANGER'
+        ? 'status-danger'
+        : mineRisk === 'WARNING'
+            ? 'status-warning'
+            : 'status-safe');
+
+overallBadge.textContent = mineRisk;
+overallBadge.className = 'status-badge ' +
+    (mineRisk === 'DANGER'
+        ? 'status-danger'
+        : mineRisk === 'WARNING'
+            ? 'status-warning'
+            : 'status-safe');
 
         if(sortedNodes.length > 0){
             renderNodes(sortedNodes);
