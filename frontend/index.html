@@ -23,6 +23,33 @@ html{scroll-behavior:smooth}
 .view-hidden{
     display:none !important;
 }
+
+.wristband-warning-pulse{
+    animation:wristbandWarningPulse 1.2s ease-in-out infinite;
+}
+
+.wristband-danger-pulse{
+    animation:wristbandDangerPulse 0.7s ease-in-out infinite;
+}
+
+@keyframes wristbandWarningPulse{
+    0%,100%{
+        box-shadow:0 0 0 transparent;
+    }
+    50%{
+        box-shadow:0 0 18px var(--yellow);
+    }
+}
+
+@keyframes wristbandDangerPulse{
+    0%,100%{
+        box-shadow:0 0 0 transparent;
+    }
+    50%{
+        box-shadow:0 0 22px var(--red);
+    }
+}
+
 .cr-alert-layout{
     display:grid;
     grid-template-columns:minmax(0,1.2fr) minmax(360px,.8fr);
@@ -408,6 +435,8 @@ const thresholdState = {
 
 let latestNodes = {};
 let controlRoomMode = false;
+let lastWristbandRisk = null;
+let lastWristbandTunnel = null;
 let activeModalNode = null;
 let incidentHistory = [];
 let previousRisk = {};
@@ -1070,9 +1099,32 @@ if(riskNodes.length === 0){
         </div>
     `).join('');
 }
+
 const wristbandStatus = document.getElementById('cr-wristband-status');
 
-const workerNode = nodes.find(node => node.node_id === personnelTunnel);
+const workerNode = nodes.find(
+    node => node.node_id === personnelTunnel
+);
+
+function simulateVibration(risk){
+    const wristband = document.getElementById('cr-wristband-status');
+
+    if(!wristband){
+        return;
+    }
+
+    wristband.classList.remove(
+        'wristband-warning-pulse',
+        'wristband-danger-pulse'
+    );
+
+    if(risk === 'WARNING'){
+        wristband.classList.add('wristband-warning-pulse');
+    }
+    else if(risk === 'DANGER'){
+        wristband.classList.add('wristband-danger-pulse');
+    }
+}
 
 if(workerNode){
     let vibration = 'NORMAL';
@@ -1081,10 +1133,12 @@ if(workerNode){
     if(workerNode.risk === 'DANGER'){
         vibration = '🔴 EMERGENCY VIBRATION';
         message = 'Immediate evacuation warning for worker.';
-    } else if(workerNode.risk === 'WARNING'){
+    }
+    else if(workerNode.risk === 'WARNING'){
         vibration = '🟡 CAUTION VIBRATION';
         message = 'Warning detected. Worker should stay alert.';
-    } else {
+    }
+    else{
         vibration = '🟢 NORMAL';
         message = 'Conditions are currently safe.';
     }
@@ -1099,7 +1153,10 @@ if(workerNode){
             </div>
         </div>
     `;
+
+    simulateVibration(workerNode.risk);
 }
+
 const rescueResponse = document.getElementById('cr-rescue-response');
 
 if(dangerNodes.length > 0){
@@ -1117,7 +1174,8 @@ if(dangerNodes.length > 0){
             </div>
         </div>
     `;
-} else if(warningNodes.length > 0){
+}
+else if(warningNodes.length > 0){
     const tunnel = warningNodes[0];
 
     rescueResponse.innerHTML = `
@@ -1131,66 +1189,68 @@ if(dangerNodes.length > 0){
             </div>
         </div>
     `;
-} else {
+}
+else{
     rescueResponse.innerHTML =
         '<div class="muted">No rescue action required.</div>';
 }
 }
 
-
-
 async function loadSensorData(){
     try{
         const response = await fetch('/sensor-data');
-        if(!response.ok) throw new Error('Backend response failed');
+
+        if(!response.ok){
+            throw new Error(`HTTP ${response.status}`);
+        }
+
         const data = await response.json();
-        const sortedNodes = Object.values(data).sort((a,b)=>a.node_id.localeCompare(b.node_id));
 
-        let overallRisk='SAFE';
-        if(sortedNodes.some(n=>n.risk==='DANGER')) overallRisk='DANGER';
-        else if(sortedNodes.some(n=>n.risk==='WARNING')) overallRisk='WARNING';
+        const sortedNodes = Object.values(data).sort(
+            (a,b) => a.node_id.localeCompare(b.node_id)
+        );
 
-        const statusEl=document.getElementById('overall-status');
-        const badgeEl=document.getElementById('overall-badge');
-        statusEl.textContent=overallRisk; statusEl.className=`mine-status-text status-${overallRisk.toLowerCase()}`;
-        badgeEl.textContent=overallRisk; badgeEl.className=`status-badge status-${overallRisk.toLowerCase()}`;
+        latestNodes = {};
 
-        document.getElementById('node-count').textContent=sortedNodes.length;
-        setAverage('avg-co', sortedNodes.map(n=>n.co), 1, 'ppm');
-        setAverage('avg-temp', sortedNodes.map(n=>n.temperature), 1, '°C');
-        setAverage('avg-humidity', sortedNodes.map(n=>n.humidity), 1, '%');
-        setAverage('avg-smoke', sortedNodes.map(n=>n.smoke_density), 1, '%');
-        document.getElementById('last-updated').textContent=new Date().toLocaleTimeString();
+        sortedNodes.forEach(node => {
+            latestNodes[node.node_id] = node;
+        });
 
-        renderNodes(sortedNodes);
-        populatePersonnelSelector(sortedNodes);
-        detectIncidents(sortedNodes);
-        renderIncidentHistory();
-        renderAlerts(sortedNodes);
-        updateVoiceAlerts(sortedNodes);
+        if(sortedNodes.length > 0){
+            renderNodes(sortedNodes);
+            renderAlerts(sortedNodes);
+            detectIncidents(sortedNodes);
+            populatePersonnelSelector(sortedNodes);
+            updatePersonnelUI();
 
-        if(controlRoomMode){
-            updateControlRoom(sortedNodes);
-}
+            setAverage('avg-co', sortedNodes.map(n => n.co), 1, 'ppm');
+            setAverage('avg-temp', sortedNodes.map(n => n.temperature), 1, '°C');
+            setAverage('avg-humidity', sortedNodes.map(n => n.humidity), 1, '%');
+            setAverage('avg-smoke', sortedNodes.map(n => n.smoke_density), 1, '%');
 
-        updatePersonnelUI();
+            document.getElementById('node-count').textContent =
+                sortedNodes.length;
+
+            document.getElementById('last-updated').textContent =
+                new Date().toLocaleTimeString();
+
+            if(controlRoomMode){
+                updateControlRoom(sortedNodes);
+            }
+        }
+
         updateAlarmState();
+        updateVoiceAlerts();
+        updateClock();
 
-        if(activeModalNode && latestNodes[activeModalNode.node_id]) openDetails(activeModalNode.node_id);
     }catch(error){
-        console.error(error);
-        document.getElementById('overall-status').textContent='OFFLINE';
-        document.getElementById('overall-status').className='mine-status-text status-danger';
-        document.getElementById('overall-badge').textContent='BACKEND OFFLINE';
-        document.getElementById('overall-badge').className='status-badge status-danger';
+        console.error('Sensor data error:', error);
     }
 }
 
-updateVoiceIndicator(false);
-updateClock();
-setInterval(updateClock,1000);
 loadSensorData();
-setInterval(loadSensorData,1000);
+setInterval(loadSensorData, 1000);
+
 </script>
 </body>
 </html>
