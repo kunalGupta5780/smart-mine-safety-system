@@ -222,6 +222,17 @@ h1{margin:0;font-size:28px;letter-spacing:1px}
 .detail-list{display:grid;gap:7px}
 .detail-row{display:flex;justify-content:space-between;gap:10px;font-size:11px;padding-bottom:7px;border-bottom:1px solid #1b2630}.detail-row:last-child{border-bottom:0;padding-bottom:0}
 .detail-row span{color:#8795a4}.detail-row strong{font-size:11px}
+.detail-sensor-value.safe{
+    color:var(--green);
+}
+
+.detail-sensor-value.warning{
+    color:var(--yellow);
+}
+
+.detail-sensor-value.danger{
+    color:var(--red);
+}
 .factor{display:flex;gap:7px;align-items:flex-start;font-size:11px;color:#ccd6df;margin-bottom:7px}.factor-dot{width:7px;height:7px;border-radius:50%;background:var(--yellow);margin-top:4px;flex:0 0 auto}
 .route-card{margin-top:12px}.route-legend{display:flex;gap:16px;flex-wrap:wrap;font-size:10px;color:#9aa7b4;margin-bottom:7px}.legend-primary{color:var(--green)}.legend-secondary{color:var(--blue)}.legend-you{color:#ff6b6b}
 .route-map{height:245px;background:#0b131b;border:1px solid #20303d;border-radius:10px;position:relative;overflow:hidden}
@@ -816,13 +827,22 @@ function openDetails(nodeId){
     document.getElementById('modal-sub').textContent = `${node.location} • Prototype detailed view`;
 
     const readings = [
-        ['CO Gas', `${node.co} ppm`],
-        ['Temperature', `${node.temperature} °C`],
-        ['Humidity', `${node.humidity} %`],
-        ['Smoke Density', `${node.smoke_density} %`],
-        ['Air Flow', `${node.air_flow} m/s`]
+    ['CO Gas', `${node.co} ppm`, getSensorLevel('co', node.co)],
+    ['Temperature', `${node.temperature} °C`, getSensorLevel('temperature', node.temperature)],
+    ['Humidity', `${node.humidity} %`, 'safe'],
+    ['Smoke Density', `${node.smoke_density} %`, getSensorLevel('smoke_density', node.smoke_density)],
+    ['Air Flow', `${node.air_flow} m/s`, getSensorLevel('air_flow', node.air_flow)]
     ];
-    document.getElementById('detail-readings').innerHTML = readings.map(([k,v])=>`<div class="detail-row"><span>${k}</span><strong>${v}</strong></div>`).join('');
+
+    document.getElementById('detail-readings').innerHTML =
+    readings.map(([k,v,level]) =>
+        `<div class="detail-row">
+            <span>${k}</span>
+            <strong class="detail-sensor-value ${level}">
+                ${v}
+            </strong>
+        </div>`
+    ).join('');
 
     document.getElementById('detail-analysis').innerHTML = [
         ['Risk level', `<span class="${node.risk==='DANGER'?'status-danger':node.risk==='WARNING'?'status-warning':'status-safe'}">${node.risk}</span>`],
@@ -1215,6 +1235,10 @@ async function loadSensorData(){
         sortedNodes.forEach(node => {
             latestNodes[node.node_id] = node;
         });
+
+        if(activeModalNode){
+    openDetails(activeModalNode.node_id);
+}
         const mineDanger = sortedNodes.some(node => node.risk === 'DANGER');
 const mineWarning = sortedNodes.some(node => node.risk === 'WARNING');
 
