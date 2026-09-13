@@ -241,6 +241,77 @@ h1{margin:0;font-size:28px;letter-spacing:1px}
 .lower-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px}
 .recommendation{display:flex;gap:8px;margin-bottom:8px;font-size:11px;color:#d0d8df}.recommendation:last-child{margin-bottom:0}
 .modal-footer{display:flex;justify-content:flex-end;padding:0 20px 18px}
+.rescue-panel{
+    margin-top:14px;
+}
+
+.rescue-grid{
+    display:grid;
+    grid-template-columns:1.35fr .65fr;
+    gap:16px;
+    align-items:start;
+}
+
+.rescue-subtitle{
+    font-size:10px;
+    color:#7f8c99;
+    letter-spacing:.7px;
+    font-weight:800;
+    margin-bottom:9px;
+}
+
+.rescue-coordination{
+    background:#101a24;
+    border:1px solid #243341;
+    border-radius:12px;
+    padding:14px;
+}
+
+.coord-row{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    gap:12px;
+    padding:10px 0;
+    border-bottom:1px solid #1c2935;
+    font-size:10px;
+}
+
+.coord-row span{
+    color:#748392;
+}
+
+.coord-row strong{
+    font-size:11px;
+    text-align:right;
+}
+
+.coord-action{
+    margin-top:12px;
+    padding:11px;
+    border-radius:10px;
+    background:#0c141c;
+    border:1px solid #20303d;
+}
+
+.coord-action span{
+    display:block;
+    font-size:9px;
+    color:#748392;
+    margin-bottom:5px;
+    letter-spacing:.6px;
+}
+
+.coord-action strong{
+    font-size:11px;
+    color:#dce5ed;
+}
+
+@media(max-width:900px){
+    .rescue-grid{
+        grid-template-columns:1fr;
+    }
+}
 /* Historical trends */
 .trends-modal{
     width:min(1250px,100%);
@@ -462,22 +533,79 @@ h1{margin:0;font-size:28px;letter-spacing:1px}
 
     <div class="panel">
         <div class="panel-title">
-            <h2>⌚ WORKER WRISTBAND SIMULATION</h2>
-            <span class="muted">Prototype only</span>
-        </div>
+    <h2>⌚ WORKER WRISTBAND SIMULATION</h2>
+
+    <div style="display:flex;align-items:center;gap:10px;">
+        <span class="muted">Prototype only</span>
+
+        <button
+            class="node-open"
+            id="cr-change-worker-button"
+            type="button">
+            👷 CHANGE LOCATION
+        </button>
+    </div>
+</div>
         <div id="cr-wristband-status">
             <div class="muted">Waiting for live sensor data...</div>
         </div>
     </div>
 
-    <div class="panel">
-        <div class="panel-title">
-            <h2>🛟 RESCUE RESPONSE</h2>
-        </div>
-        <div id="cr-rescue-response">
-            <div class="muted">No rescue action required.</div>
-        </div>
+    <div class="panel rescue-panel">
+
+    <div class="panel-title">
+        <h2>🛟 RESCUE RESPONSE</h2>
+        <span class="muted">Live emergency coordination</span>
     </div>
+
+    <div class="rescue-grid">
+
+        <div>
+            <div class="rescue-subtitle">🚨 ACTIVE RESPONSE</div>
+
+            <div id="cr-rescue-response">
+                <div class="muted">No rescue action required.</div>
+            </div>
+        </div>
+
+        <div class="rescue-coordination">
+
+            <div class="rescue-subtitle">🎯 RESCUE COORDINATION</div>
+
+            <div class="coord-row">
+                <span>RESPONSE PRIORITY</span>
+                <strong id="cr-response-priority" class="status-safe">
+                    NORMAL
+                </strong>
+            </div>
+
+            <div class="coord-row">
+                <span>AFFECTED TUNNELS</span>
+                <strong id="cr-affected-tunnels">
+                    NONE
+                </strong>
+            </div>
+
+            <div class="coord-row">
+                <span>PERSONNEL STATUS</span>
+                <strong id="cr-personnel-status">
+                    W07 • Mine Tunnel 01
+                </strong>
+            </div>
+
+            <div class="coord-action">
+                <span>RECOMMENDED ACTION</span>
+                <strong id="cr-recommended-action">
+                    Continue routine monitoring.
+                </strong>
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
 </section>
 
 <section class="panel personnel-panel">
@@ -633,6 +761,83 @@ h1{margin:0;font-size:28px;letter-spacing:1px}
         <div class="modal-footer">
             <button class="close-btn" id="trends-modal-close-2">
                 CLOSE
+            </button>
+        </div>
+
+    </div>
+</div>
+
+<div id="worker-location-modal" class="modal-backdrop" aria-hidden="true">
+
+    <div class="modal worker-location-modal"
+         role="dialog"
+         aria-modal="true"
+         aria-labelledby="worker-location-title">
+
+        <div class="modal-head">
+            <div>
+                <h3 id="worker-location-title">
+                    👷 Worker Location
+                </h3>
+
+                <div class="modal-sub">
+                    Simulated personnel location for prototype
+                </div>
+            </div>
+
+            <button
+                class="close-btn"
+                id="worker-location-close">
+                ✕
+            </button>
+        </div>
+
+        <div class="modal-body">
+
+            <div class="detail-card">
+
+                <h4>WORKER</h4>
+
+                <div class="detail-row">
+                    <span>Worker ID</span>
+                    <strong>W07</strong>
+                </div>
+
+                <div class="detail-row">
+                    <span>Current Tunnel</span>
+                    <strong id="worker-current-location">
+                        MINE_TUNNEL_01
+                    </strong>
+                </div>
+
+                <div style="margin-top:14px;">
+
+                    <label
+                        for="cr-personnel-tunnel"
+                        style="display:block;
+                               font-size:9px;
+                               color:#748392;
+                               letter-spacing:.7px;
+                               margin-bottom:6px;">
+                        SELECT TUNNEL
+                    </label>
+
+                    <select
+                        id="cr-personnel-tunnel"
+                        class="personnel-select">
+                    </select>
+
+                </div>
+
+            </div>
+
+        </div>
+
+        <div class="modal-footer">
+            <button
+                class="close-btn"
+                id="worker-location-close-2">
+                DONE
             </button>
         </div>
 
@@ -961,6 +1166,98 @@ document.getElementById('personnel-tunnel').addEventListener('change', function(
     updateVoiceAlerts();
     if(activeModalNode) openDetails(activeModalNode.node_id);
 });
+function openWorkerLocation(){
+
+    const modal =
+        document.getElementById('worker-location-modal');
+
+    const select =
+        document.getElementById('cr-personnel-tunnel');
+
+    const current =
+        document.getElementById('worker-current-location');
+
+    select.innerHTML =
+        '<option value="">NO TUNNEL SELECTED • MINE-WIDE</option>' +
+        Object.values(latestNodes)
+            .sort((a,b) =>
+                a.node_id.localeCompare(b.node_id)
+            )
+            .map(node =>
+                `<option value="${node.node_id}">
+                    ${node.node_id} • ${node.location}
+                </option>`
+            )
+            .join('');
+
+    select.value = personnelTunnel;
+
+    current.textContent =
+        personnelTunnel || 'MINE-WIDE';
+
+    modal.classList.add('open');
+    modal.setAttribute('aria-hidden','false');
+}
+
+
+function closeWorkerLocation(){
+
+    const modal =
+        document.getElementById('worker-location-modal');
+
+    modal.classList.remove('open');
+    modal.setAttribute('aria-hidden','true');
+}
+
+
+document
+    .getElementById('cr-change-worker-button')
+    .addEventListener('click', openWorkerLocation);
+
+
+document
+    .getElementById('worker-location-close')
+    .addEventListener('click', closeWorkerLocation);
+
+
+document
+    .getElementById('worker-location-close-2')
+    .addEventListener('click', closeWorkerLocation);
+
+
+document
+    .getElementById('worker-location-modal')
+    .addEventListener('click', e => {
+
+        if(e.target.id === 'worker-location-modal'){
+            closeWorkerLocation();
+        }
+
+    });
+
+
+document
+    .getElementById('cr-personnel-tunnel')
+    .addEventListener('change', function(){
+
+        personnelTunnel = this.value;
+
+        lastVoiceRisk = {};
+
+        stopVoiceAlerts();
+        updatePersonnelUI();
+        updateAlarmState();
+        updateVoiceAlerts();
+
+        if(activeModalNode){
+            openDetails(activeModalNode.node_id);
+        }
+
+        document.getElementById(
+            'worker-current-location'
+        ).textContent =
+            personnelTunnel || 'MINE-WIDE';
+    });
 
 const routeProfiles = {
     MINE_TUNNEL_01: {
@@ -1677,6 +1974,80 @@ function updateControlRoom(nodes){
     const tunnelCount = nodes.length;
     const dangerNodes = nodes.filter(node => node.risk === 'DANGER');
     const warningNodes = nodes.filter(node => node.risk === 'WARNING');
+    const responsePriority =
+    document.getElementById('cr-response-priority');
+
+const affectedTunnels =
+    document.getElementById('cr-affected-tunnels');
+
+const personnelStatus =
+    document.getElementById('cr-personnel-status');
+
+const recommendedAction =
+    document.getElementById('cr-recommended-action');
+
+if(dangerNodes.length > 0){
+
+    responsePriority.textContent = 'CRITICAL';
+    responsePriority.className = 'status-danger';
+
+    affectedTunnels.textContent =
+        dangerNodes
+            .map(n => n.node_id.replace('MINE_TUNNEL_', 'T'))
+            .join(' • ');
+
+    recommendedAction.textContent =
+        'Evacuate affected zones and deploy rescue team.';
+
+}
+else if(warningNodes.length > 0){
+
+    responsePriority.textContent = 'HIGH';
+    responsePriority.className = 'status-warning';
+
+    affectedTunnels.textContent =
+        warningNodes
+            .map(n => n.node_id.replace('MINE_TUNNEL_', 'T'))
+            .join(' • ');
+
+    recommendedAction.textContent =
+        'Monitor affected zones and keep rescue team ready.';
+
+}
+else{
+
+    responsePriority.textContent = 'NORMAL';
+    responsePriority.className = 'status-safe';
+
+    affectedTunnels.textContent = 'NONE';
+
+    recommendedAction.textContent =
+        'Continue routine monitoring.';
+}
+
+const personnelNode = personnelTunnel
+    ? latestNodes[personnelTunnel]
+    : null;
+
+if(personnelNode){
+    const workerRisk = personnelNode.risk;
+
+    personnelStatus.textContent =
+        `W07 • ${personnelNode.node_id} • ${workerRisk}`;
+
+    personnelStatus.className =
+        workerRisk === 'DANGER'
+            ? 'status-danger'
+            : workerRisk === 'WARNING'
+                ? 'status-warning'
+                : 'status-safe';
+}
+else{
+    personnelStatus.textContent =
+        'W07 • Mine-wide monitoring';
+
+    personnelStatus.className = 'status-safe';
+}
 
     document.getElementById('cr-tunnel-count').textContent = tunnelCount;
     document.getElementById('cr-danger-count').textContent = dangerNodes.length;
@@ -1789,21 +2160,22 @@ if(workerNode){
 const rescueResponse = document.getElementById('cr-rescue-response');
 
 if(dangerNodes.length > 0){
-    const tunnel = dangerNodes[0];
 
-    rescueResponse.innerHTML = `
-        <div class="alert">
+    rescueResponse.innerHTML = dangerNodes.map(tunnel => `
+        <div class="alert" style="margin-bottom:10px;">
             <strong style="color:var(--red);">
-                🚨 EMERGENCY RESPONSE REQUIRED
+                🚨 EMERGENCY RESPONSE — ${tunnel.node_id}
             </strong>
+
             <div class="alert-reasons">
                 Affected Location: ${tunnel.location}<br>
                 Action: Evacuate workers and deploy rescue team.<br>
                 Reason: ${tunnel.risk_reasons.join(' • ')}
             </div>
         </div>
-    `;
+    `).join('');
 }
+
 else if(warningNodes.length > 0){
     const tunnel = warningNodes[0];
 
