@@ -287,6 +287,69 @@ h1{margin:0;font-size:28px;letter-spacing:1px}
 .rescue-panel{
     margin-top:14px;
 }
+.rescue-layout{
+    display:grid;
+    grid-template-columns:7fr 3fr;
+    gap:14px;
+    margin-top:14px;
+}
+
+.rescue-layout .rescue-panel{
+    margin-top:0;
+}
+
+.ai-control-panel{
+    min-width:0;
+}
+
+.ai-control-status{
+    margin-bottom:12px;
+}
+
+.ai-control-status-value{
+    margin-top:6px;
+    font-size:18px;
+    font-weight:900;
+    color:var(--yellow);
+}
+
+.ai-control-detail{
+    margin-top:4px;
+    color:#71808e;
+    font-size:9px;
+    line-height:1.4;
+}
+
+.ai-control-metrics{
+    display:flex;
+    flex-direction:column;
+    width:100%;
+}
+
+.ai-control-row{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    width:100%;
+    gap:10px;
+    padding:8px 0;
+    border-bottom:1px solid #1b2630;
+    font-size:10px;
+}
+
+.ai-control-row:last-child{
+    border-bottom:0;
+}
+
+.ai-control-row span{
+    color:#8795a4;
+}
+
+.ai-control-row strong{
+    margin-left:auto;
+    text-align:right;
+    font-size:11px;
+}
 
 .rescue-grid{
     display:grid;
@@ -504,6 +567,9 @@ h1{margin:0;font-size:28px;letter-spacing:1px}
     margin-left:auto;
     text-align:right;
 }
+.status-learning{
+    color:#42b9ff;
+}
 </style>
 </head>
 <body>
@@ -677,53 +743,100 @@ h1{margin:0;font-size:28px;letter-spacing:1px}
         </div>
     </div>
 
+    <div class="rescue-layout">
+
     <div class="panel rescue-panel">
 
-    <div class="panel-title">
-        <h2>🛟 RESCUE RESPONSE</h2>
-        <span class="muted">Live emergency coordination</span>
+        <div class="panel-title">
+            <h2>🛟 RESCUE RESPONSE</h2>
+            <span class="muted">Live emergency coordination</span>
+        </div>
+
+        <div class="rescue-grid">
+
+            <div>
+                <div class="rescue-subtitle">🚨 ACTIVE RESPONSE</div>
+
+                <div id="cr-rescue-response">
+                    <div class="muted">No rescue action required.</div>
+                </div>
+            </div>
+
+            <div class="rescue-coordination">
+
+                <div class="rescue-subtitle">🎯 RESCUE COORDINATION</div>
+
+                <div class="coord-row">
+                    <span>RESPONSE PRIORITY</span>
+                    <strong id="cr-response-priority" class="status-safe">
+                        NORMAL
+                    </strong>
+                </div>
+
+                <div class="coord-row">
+                    <span>AFFECTED TUNNELS</span>
+                    <strong id="cr-affected-tunnels">
+                        NONE
+                    </strong>
+                </div>
+
+                <div class="coord-row">
+                    <span>PERSONNEL STATUS</span>
+                    <strong id="cr-personnel-status">
+                        W07 • Mine Tunnel 01
+                    </strong>
+                </div>
+
+                <div class="coord-action">
+                    <span>RECOMMENDED ACTION</span>
+                    <strong id="cr-recommended-action">
+                        Continue routine monitoring.
+                    </strong>
+                </div>
+
+            </div>
+
+        </div>
+
     </div>
 
-    <div class="rescue-grid">
+    <div class="panel ai-control-panel">
 
-        <div>
-            <div class="rescue-subtitle">🚨 ACTIVE RESPONSE</div>
+        <div class="panel-title">
+            <h2>🤖 AI PATTERN MONITORING</h2>
+            <span class="muted">LIVE</span>
+        </div>
 
-            <div id="cr-rescue-response">
-                <div class="muted">No rescue action required.</div>
+        <div class="ai-control-status">
+            <div class="info-label">MINE-WIDE AI STATUS</div>
+            <div id="cr-ai-status" class="ai-control-status-value">
+                LEARNING
+            </div>
+            <div id="cr-ai-detail" class="ai-control-detail">
+                Building normal-condition baseline...
             </div>
         </div>
 
-        <div class="rescue-coordination">
+        <div class="ai-control-metrics">
 
-            <div class="rescue-subtitle">🎯 RESCUE COORDINATION</div>
-
-            <div class="coord-row">
-                <span>RESPONSE PRIORITY</span>
-                <strong id="cr-response-priority" class="status-safe">
-                    NORMAL
-                </strong>
+            <div class="ai-control-row">
+                <span>UNUSUAL TUNNELS</span>
+                <strong id="cr-ai-anomaly-count">0 / 0</strong>
             </div>
 
-            <div class="coord-row">
-                <span>AFFECTED TUNNELS</span>
-                <strong id="cr-affected-tunnels">
-                    NONE
-                </strong>
+            <div class="ai-control-row">
+                <span>AI PATTERN RATE</span>
+                <strong id="cr-ai-anomaly-percent">0%</strong>
             </div>
 
-            <div class="coord-row">
-                <span>PERSONNEL STATUS</span>
-                <strong id="cr-personnel-status">
-                    W07 • Mine Tunnel 01
-                </strong>
+            <div class="ai-control-row">
+                <span>MOST UNUSUAL</span>
+                <strong id="cr-ai-most-unusual">NONE</strong>
             </div>
 
-            <div class="coord-action">
-                <span>RECOMMENDED ACTION</span>
-                <strong id="cr-recommended-action">
-                    Continue routine monitoring.
-                </strong>
+            <div class="ai-control-row">
+                <span>ANOMALY SCORE</span>
+                <strong id="cr-ai-most-score">--</strong>
             </div>
 
         </div>
@@ -2153,6 +2266,78 @@ function updateControlRoom(nodes){
     const tunnelCount = nodes.length;
     const dangerNodes = nodes.filter(node => node.risk === 'DANGER');
     const warningNodes = nodes.filter(node => node.risk === 'WARNING');
+    const aiAnomalies = nodes.filter(
+    node => node.ai_status === 'ANOMALY'
+);
+
+const aiLearning = nodes.filter(
+    node => node.ai_status === 'LEARNING'
+);
+
+const crAIStatus = document.getElementById('cr-ai-status');
+const crAIDetail = document.getElementById('cr-ai-detail');
+const crAIAnomalyCount = document.getElementById('cr-ai-anomaly-count');
+const crAIAnomalyPercent = document.getElementById('cr-ai-anomaly-percent');
+const crAIMostUnusual = document.getElementById('cr-ai-most-unusual');
+const crAIMostScore = document.getElementById('cr-ai-most-score');
+
+let mineAIStatus = 'NORMAL';
+
+if(aiLearning.length > 0){
+    mineAIStatus = 'LEARNING';
+}
+else if(aiAnomalies.length > 0){
+    mineAIStatus = 'ANOMALY DETECTED';
+}
+
+crAIStatus.textContent = mineAIStatus;
+crAIStatus.className = '';
+
+if(mineAIStatus === 'ANOMALY DETECTED'){
+    crAIStatus.classList.add('status-danger');
+}
+else if(mineAIStatus === 'LEARNING'){
+    crAIStatus.classList.add('status-learning');
+}
+else{
+    crAIStatus.classList.add('status-safe');
+}
+
+crAIDetail.textContent =
+    aiLearning.length > 0
+        ? 'Building normal-condition baseline...'
+        : aiAnomalies.length > 0
+            ? `${aiAnomalies.length} of ${nodes.length} tunnels show unusual patterns.`
+            : 'All monitored tunnels are within the learned baseline.';
+
+crAIAnomalyCount.textContent =
+    `${aiAnomalies.length} / ${nodes.length}`;
+
+const crAnomalyPercent = nodes.length > 0
+    ? Math.round((aiAnomalies.length / nodes.length) * 100)
+    : 0;
+
+crAIAnomalyPercent.textContent =
+    `${crAnomalyPercent}%`;
+
+if(aiAnomalies.length > 0){
+
+    const mostUnusual = [...aiAnomalies].sort(
+        (a,b) => a.ai_anomaly_score - b.ai_anomaly_score
+    )[0];
+
+    crAIMostUnusual.textContent = mostUnusual.node_id;
+
+    crAIMostScore.textContent =
+        Number(mostUnusual.ai_anomaly_score).toFixed(4);
+
+}
+else{
+
+    crAIMostUnusual.textContent = 'NONE';
+    crAIMostScore.textContent = '--';
+
+}
     const responsePriority =
     document.getElementById('cr-response-priority');
 
