@@ -174,7 +174,13 @@ h1{margin:0;font-size:28px;letter-spacing:1px}
 .risk-score{font-size:12px;color:#a7b3bf}.risk-score strong{font-size:14px}
 .score-safe{color:var(--green)}.score-warning{color:var(--yellow)}.score-danger{color:var(--red)}
 
-.bottom-grid{display:grid;grid-template-columns:1.6fr .9fr;gap:14px;margin-top:14px}
+.bottom-grid{
+    display:grid;
+    grid-template-columns:1.8fr 1.2fr 1fr;
+    gap:14px;
+    margin-top:14px;
+}
+
 .panel{padding:16px}
 .panel-title{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px}
 .panel-title h2{margin:0;font-size:15px}
@@ -186,6 +192,16 @@ h1{margin:0;font-size:28px;letter-spacing:1px}
 .alert strong{font-size:12px}.alert span{font-size:11px;color:#98a6b4}.alert-reasons{margin-top:5px;font-size:11px;color:#c4ced8}
 .system-info{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .info-box{background:#131d27;padding:11px;border-radius:9px;border:1px solid #1c2934}
+.ai-info-box{
+    position:relative;
+}
+
+.ai-info-detail{
+    margin-top:5px;
+    font-size:9px;
+    color:#71808e;
+    line-height:1.4;
+}
 .info-label{font-size:9px;color:#748392;letter-spacing:.6px}.info-value{margin-top:4px;font-weight:800;font-size:12px}
 .footer{margin-top:16px;text-align:center;color:#5f6c78;font-size:11px}
 
@@ -423,7 +439,7 @@ h1{margin:0;font-size:28px;letter-spacing:1px}
 @media(max-width:1100px){
     .top-grid{grid-template-columns:1fr 1fr 1fr}
     #nodes{grid-template-columns:1fr 1fr}
-    .bottom-grid{grid-template-columns:1fr}
+    .bottom-grid{grid-template-columns:1fr 1fr 1fr}
     .details-grid{grid-template-columns:1fr 1fr}
 }
 @media(max-width:700px){
@@ -480,6 +496,56 @@ h1{margin:0;font-size:28px;letter-spacing:1px}
 </div>
         <div id="alerts"><div class="alert"><strong>System:</strong> Monitoring mine sensor network...</div></div>
     </div>
+
+    <div class="panel ai-analysis-panel">
+
+    <div class="panel-title">
+        <h2>🤖 AI PATTERN ANALYSIS</h2>
+        <span class="muted">LIVE</span>
+    </div>
+
+    <div class="ai-status-main">
+        <div class="info-label">MINE-WIDE AI STATUS</div>
+
+        <div
+            id="overall-ai-status"
+            class="ai-status-value status-warning">
+            LEARNING
+        </div>
+
+        <div
+            id="overall-ai-detail"
+            class="ai-status-detail">
+            Building normal-condition baseline...
+        </div>
+    </div>
+
+    <div class="ai-metrics">
+
+        <div class="ai-metric">
+            <span>UNUSUAL TUNNELS</span>
+            <strong id="ai-anomaly-count">0 / 0</strong>
+        </div>
+
+        <div class="ai-metric">
+            <span>AI PATTERN RATE</span>
+            <strong id="ai-anomaly-percent">0%</strong>
+        </div>
+
+        <div class="ai-metric">
+            <span>MOST UNUSUAL</span>
+            <strong id="ai-most-unusual">NONE</strong>
+        </div>
+
+        <div class="ai-metric">
+            <span>ANOMALY SCORE</span>
+            <strong id="ai-most-score">--</strong>
+        </div>
+
+    </div>
+
+</div>
+
     <div class="panel">
         <div class="panel-title"><h2>⚙️ System Information</h2><span class="muted">LIVE</span></div>
         <div class="system-info">
@@ -487,8 +553,12 @@ h1{margin:0;font-size:28px;letter-spacing:1px}
             <div class="info-box"><div class="info-label">CONNECTION</div><div class="info-value" style="color:var(--green)">ONLINE</div></div>
             <div class="info-box"><div class="info-label">UPDATE RATE</div><div class="info-value">1 SECOND</div></div>
             <div class="info-box"><div class="info-label">DATA SOURCE</div><div class="info-value">SIMULATED SENSORS</div></div>
-            <div class="info-box"><div class="info-label">LAST UPDATED</div><div class="info-value" id="last-updated">--</div></div>
-        </div>
+           <div class="info-box">
+    <div class="info-label">LAST UPDATED</div>
+    <div class="info-value" id="last-updated">--</div>
+</div>
+
+</div>
     </div>
 </section>
 <section id="control-room-view" class="view-hidden">
@@ -2210,6 +2280,91 @@ async function loadSensorData(){
         const sortedNodes = Object.values(data).sort(
             (a,b) => a.node_id.localeCompare(b.node_id)
         );
+        // Update overall AI panel
+const aiAnomalies = sortedNodes.filter(
+    node => node.ai_status === "ANOMALY"
+);
+
+const aiLearning = sortedNodes.filter(
+    node => node.ai_status === "LEARNING"
+);
+
+let mineAIStatus = "NORMAL";
+
+if (aiLearning.length > 0) {
+    mineAIStatus = "LEARNING";
+} else if (aiAnomalies.length > 0) {
+    mineAIStatus = "ANOMALY DETECTED";
+}
+
+document.getElementById("overall-ai-status").textContent = mineAIStatus;
+
+document.getElementById("ai-anomaly-count").textContent =
+    `${aiAnomalies.length} / ${sortedNodes.length}`;
+
+const anomalyPercent = sortedNodes.length > 0
+    ? Math.round((aiAnomalies.length / sortedNodes.length) * 100)
+    : 0;
+
+document.getElementById("ai-anomaly-percent").textContent =
+    `${anomalyPercent}%`;
+
+if (aiAnomalies.length > 0) {
+    const mostUnusual = [...aiAnomalies].sort(
+        (a, b) => a.ai_anomaly_score - b.ai_anomaly_score
+    )[0];
+
+    document.getElementById("ai-most-unusual").textContent =
+        mostUnusual.node_id;
+
+    document.getElementById("ai-most-score").textContent =
+        Number(mostUnusual.ai_anomaly_score).toFixed(4);
+} else {
+    document.getElementById("ai-most-unusual").textContent = "NONE";
+    document.getElementById("ai-most-score").textContent = "--";
+}
+
+const overallAiStatus =
+    document.getElementById('overall-ai-status');
+
+const overallAiDetail =
+    document.getElementById('overall-ai-detail');
+
+if(aiAnomalies.length > 0){
+
+    overallAiStatus.textContent =
+        'ANOMALY DETECTED';
+
+    overallAiStatus.className =
+        'info-value status-danger';
+
+    overallAiDetail.textContent =
+        `${aiAnomalies.length} of ${sortedNodes.length} tunnels show unusual patterns.`;
+
+}
+else if(aiLearning.length > 0){
+
+    overallAiStatus.textContent =
+        'LEARNING';
+
+    overallAiStatus.className =
+        'info-value status-warning';
+
+    overallAiDetail.textContent =
+        `AI baseline still learning from safe conditions.`;
+
+}
+else{
+
+    overallAiStatus.textContent =
+        'NORMAL';
+
+    overallAiStatus.className =
+        'info-value status-safe';
+
+    overallAiDetail.textContent =
+        `No unusual patterns detected across monitored tunnels.`;
+}
         recordTrendData(sortedNodes);
 
 populateTrendTunnelSelector();
