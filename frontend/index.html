@@ -232,12 +232,39 @@ h1{margin:0;font-size:28px;letter-spacing:1px}
 .modal-head h3{margin:0;font-size:21px}.modal-sub{color:#8493a1;font-size:11px;margin-top:4px}
 .close-btn{border:1px solid #3a4855;background:#111a23;color:#fff;border-radius:9px;padding:8px 11px;cursor:pointer}
 .modal-body{padding:18px 20px}
-.details-grid{display:grid;grid-template-columns:1.1fr .9fr .9fr;gap:12px}
+.details-grid{
+    display:grid;
+    grid-template-columns:1.1fr .9fr .9fr;
+    gap:12px;
+}
+
+.details-grid .detail-card:last-child{
+    grid-column:1 / -1;
+}
 .detail-card{background:#101a24;border:1px solid #243341;border-radius:11px;padding:13px}
 .detail-card h4{margin:0 0 9px;font-size:11px;color:#60eaa9;letter-spacing:.7px}
 .detail-list{display:grid;gap:7px}
 .detail-row{display:flex;justify-content:space-between;gap:10px;font-size:11px;padding-bottom:7px;border-bottom:1px solid #1b2630}.detail-row:last-child{border-bottom:0;padding-bottom:0}
 .detail-row span{color:#8795a4}.detail-row strong{font-size:11px}
+.detail-ai-status{
+    font-weight:800;
+}
+
+.detail-ai-status.safe{
+    color:var(--green);
+}
+
+.detail-ai-status.warning{
+    color:var(--yellow);
+}
+
+.detail-ai-status.danger{
+    color:var(--red);
+}
+
+.detail-ai-status.learning{
+    color:#60a5fa;
+}
 .detail-sensor-value.safe{
     color:var(--green);
 }
@@ -447,6 +474,35 @@ h1{margin:0;font-size:28px;letter-spacing:1px}
     header{flex-direction:column;align-items:flex-start}.live-wrap{width:100%;justify-content:space-between}
     .top-grid{grid-template-columns:1fr 1fr}.mine-status{grid-column:1/-1}
     #nodes{grid-template-columns:1fr}.system-info,.details-grid,.lower-grid{grid-template-columns:1fr}
+}
+.ai-metrics{
+    display:flex;
+    flex-direction:column;
+    width:100%;
+}
+
+.ai-metric{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    width:100%;
+    padding:8px 0;
+    border-bottom:1px solid #1b2630;
+    font-size:10px;
+}
+
+.ai-metric:last-child{
+    border-bottom:0;
+}
+
+.ai-metric span{
+    color:#8795a4;
+}
+
+.ai-metric strong{
+    font-size:11px;
+    margin-left:auto;
+    text-align:right;
 }
 </style>
 </head>
@@ -708,10 +764,42 @@ h1{margin:0;font-size:28px;letter-spacing:1px}
     </div>
     <div class="modal-body">
       <div class="details-grid">
-        <div class="detail-card"><h4>LIVE SENSOR READINGS</h4><div id="detail-readings" class="detail-list"></div></div>
-        <div class="detail-card"><h4>RISK ANALYSIS</h4><div id="detail-analysis" class="detail-list"></div></div>
-        <div class="detail-card"><h4>RISK FACTORS</h4><div id="detail-factors"></div></div>
-      </div>
+
+  <div class="detail-card">
+    <h4>LIVE SENSOR READINGS</h4>
+    <div id="detail-readings" class="detail-list"></div>
+  </div>
+
+  <div class="detail-card">
+    <h4>RISK ANALYSIS</h4>
+    <div id="detail-analysis" class="detail-list"></div>
+  </div>
+
+  <div class="detail-card">
+    <h4>RISK FACTORS</h4>
+    <div id="detail-factors"></div>
+  </div>
+
+  <div class="detail-card">
+    <h4>🤖 AI PATTERN ANALYSIS</h4>
+
+    <div class="detail-row">
+      <span>AI STATUS</span>
+      <strong id="detail-ai-status">--</strong>
+    </div>
+
+    <div class="detail-row">
+      <span>ANOMALY SCORE</span>
+      <strong id="detail-ai-score">--</strong>
+    </div>
+
+    <div class="detail-row">
+      <span>PATTERN</span>
+      <strong id="detail-ai-message">--</strong>
+    </div>
+  </div>
+
+</div>
       <div class="detail-card route-card">
         <h4>ESCAPE ROUTE</h4>
         <div class="route-legend"><span class="legend-primary">→ Primary escape route</span><span class="legend-secondary">→ Secondary escape route</span><span class="legend-you">● You are here</span><span class="legend-primary">✦ Exit point</span></div>
@@ -1399,6 +1487,27 @@ function openDetails(nodeId){
     activeModalNode = node;
     document.getElementById('modal-title').textContent = node.node_id;
     document.getElementById('modal-sub').textContent = `${node.location} • Prototype detailed view`;
+    const aiStatusEl = document.getElementById('detail-ai-status');
+
+aiStatusEl.textContent = node.ai_status || '--';
+
+aiStatusEl.className = 'detail-ai-status';
+
+if(node.ai_status === 'ANOMALY'){
+    aiStatusEl.classList.add('danger');
+}else if(node.ai_status === 'LEARNING'){
+    aiStatusEl.classList.add('learning');
+}else{
+    aiStatusEl.classList.add('safe');
+}
+
+document.getElementById('detail-ai-score').textContent =
+    node.ai_anomaly_score !== undefined
+        ? Number(node.ai_anomaly_score).toFixed(4)
+        : '--';
+
+document.getElementById('detail-ai-message').textContent =
+    node.ai_message || '--';
 
     const readings = [
     ['CO Gas', `${node.co} ppm`, getSensorLevel('co', node.co)],
