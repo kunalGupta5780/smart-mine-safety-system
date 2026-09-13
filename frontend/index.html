@@ -241,6 +241,113 @@ h1{margin:0;font-size:28px;letter-spacing:1px}
 .lower-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px}
 .recommendation{display:flex;gap:8px;margin-bottom:8px;font-size:11px;color:#d0d8df}.recommendation:last-child{margin-bottom:0}
 .modal-footer{display:flex;justify-content:flex-end;padding:0 20px 18px}
+/* Historical trends */
+.trends-modal{
+    width:min(1250px,100%);
+}
+
+.trend-controls{
+    display:flex;
+    justify-content:space-between;
+    align-items:end;
+    gap:14px;
+    margin-bottom:16px;
+    padding:12px;
+    background:#0d161f;
+    border:1px solid #22313f;
+    border-radius:12px;
+}
+
+.trend-controls > div{
+    display:flex;
+    flex-direction:column;
+    gap:6px;
+}
+
+.trend-controls label{
+    font-size:9px;
+    color:#748392;
+    letter-spacing:.7px;
+    font-weight:800;
+}
+
+.trend-select{
+    min-width:190px;
+    padding:9px 11px;
+    border-radius:9px;
+    border:1px solid #314151;
+    background:#0b131b;
+    color:#eaf0f5;
+    outline:none;
+}
+
+.trend-grid{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:12px;
+}
+
+.trend-card{
+    background:#0d161f;
+    border:1px solid #243341;
+    border-radius:12px;
+    padding:12px;
+}
+
+.trend-card-head{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    margin-bottom:8px;
+}
+
+.trend-card-head h4{
+    margin:0;
+    font-size:12px;
+}
+
+.trend-card-head span{
+    font-size:10px;
+    color:#71808e;
+}
+
+.trend-card canvas{
+    display:block;
+    width:100%;
+    height:190px;
+    background:#0a1118;
+    border:1px solid #1c2935;
+    border-radius:9px;
+}
+
+.trend-footer{
+    display:flex;
+    justify-content:space-between;
+    margin-top:12px;
+    font-size:10px;
+    color:#71808e;
+}
+
+.trend-footer span:first-child{
+    color:var(--green);
+    font-weight:800;
+}
+
+@media(max-width:700px){
+    .trend-controls{
+        flex-direction:column;
+        align-items:stretch;
+    }
+
+    .trend-select{
+        width:100%;
+        min-width:0;
+    }
+
+    .trend-grid{
+        grid-template-columns:1fr;
+    }
+}
 
 @media(max-width:1100px){
     .top-grid{grid-template-columns:1fr 1fr 1fr}
@@ -288,7 +395,18 @@ h1{margin:0;font-size:28px;letter-spacing:1px}
 
 <section class="bottom-grid">
     <div class="panel">
-        <div class="panel-title"><h2>⚠️ Risk Alerts</h2><div style="display:flex;align-items:center;gap:10px;"><span class="muted" id="alert-count">0 active</span><button class="node-open" id="view-incidents-button" type="button">🕒 RECENT INCIDENTS →</button></div></div>
+        <div class="panel-title">
+    <h2>⚠️ Risk Alerts</h2>
+    <div style="display:flex;align-items:center;gap:10px;">
+        <span class="muted" id="alert-count">0 active</span>
+        <button class="node-open" id="view-trends-button" type="button">
+            📈 VIEW TRENDS →
+        </button>
+        <button class="node-open" id="view-incidents-button" type="button">
+            🕒 RECENT INCIDENTS →
+        </button>
+    </div>
+</div>
         <div id="alerts"><div class="alert"><strong>System:</strong> Monitoring mine sensor network...</div></div>
     </div>
     <div class="panel">
@@ -435,6 +553,92 @@ h1{margin:0;font-size:28px;letter-spacing:1px}
     </div>
 </div>
 
+<div id="trends-modal" class="modal-backdrop" aria-hidden="true">
+    <div class="modal trends-modal" role="dialog" aria-modal="true" aria-labelledby="trends-modal-title">
+
+        <div class="modal-head">
+            <div>
+                <h3 id="trends-modal-title">📈 Environmental Trends</h3>
+                <div class="modal-sub">
+                    Historical sensor readings from the live monitoring system
+                </div>
+            </div>
+
+            <button class="close-btn" id="trends-modal-close">✕</button>
+        </div>
+
+        <div class="modal-body">
+
+            <div class="trend-controls">
+                <div>
+                    <label for="trend-tunnel">TUNNEL</label>
+                    <select id="trend-tunnel" class="trend-select">
+                        <option value="ALL">MINE AVERAGE</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label for="trend-range">TIME RANGE</label>
+                    <select id="trend-range" class="trend-select">
+                        <option value="60">LAST 1 MINUTE</option>
+                        <option value="300" selected>LAST 5 MINUTES</option>
+                        <option value="900">LAST 15 MINUTES</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="trend-grid">
+
+                <div class="trend-card">
+                    <div class="trend-card-head">
+                        <h4>🧪 CO Gas</h4>
+                        <span>ppm</span>
+                    </div>
+                    <canvas id="trend-co"></canvas>
+                </div>
+
+                <div class="trend-card">
+                    <div class="trend-card-head">
+                        <h4>🌡️ Temperature</h4>
+                        <span>°C</span>
+                    </div>
+                    <canvas id="trend-temperature"></canvas>
+                </div>
+
+                <div class="trend-card">
+                    <div class="trend-card-head">
+                        <h4>🌫️ Smoke Density</h4>
+                        <span>%</span>
+                    </div>
+                    <canvas id="trend-smoke"></canvas>
+                </div>
+
+                <div class="trend-card">
+                    <div class="trend-card-head">
+                        <h4>💨 Air Flow</h4>
+                        <span>m/s</span>
+                    </div>
+                    <canvas id="trend-airflow"></canvas>
+                </div>
+
+            </div>
+
+            <div class="trend-footer">
+                <span>● LIVE HISTORY</span>
+                <span>Updated every second</span>
+            </div>
+
+        </div>
+
+        <div class="modal-footer">
+            <button class="close-btn" id="trends-modal-close-2">
+                CLOSE
+            </button>
+        </div>
+
+    </div>
+</div>
+
 <script>
 const thresholdState = {
     co: {warning: 30, danger: 40, higherIsWorse: true},
@@ -460,6 +664,9 @@ let lastVoiceRisk = {};
 let voiceDangerInterval = null;
 let voiceWarningTimeout = null;
 let personnelTunnel = 'MINE_TUNNEL_01';
+let trendHistory = {};
+let trendRange = 300;
+let trendSelectedTunnel = 'ALL';
 
 function toggleAlarm(){
     try{
@@ -1018,6 +1225,408 @@ function setAverage(id, values, digits=1, suffix=''){
     const avg = values.reduce((a,b)=>a+b,0)/Math.max(values.length,1);
     document.getElementById(id).textContent = `${avg.toFixed(digits)} ${suffix}`.trim();
 }
+function recordTrendData(sortedNodes){
+    sortedNodes.forEach(node => {
+
+        if(!trendHistory[node.node_id]){
+            trendHistory[node.node_id] = [];
+        }
+
+        trendHistory[node.node_id].push({
+            time: Date.now(),
+            co: Number(node.co),
+            temperature: Number(node.temperature),
+            smoke_density: Number(node.smoke_density),
+            air_flow: Number(node.air_flow)
+        });
+
+        trendHistory[node.node_id] =
+            trendHistory[node.node_id].slice(-900);
+    });
+}
+
+
+function getTrendSeries(metric){
+
+    const cutoff = Date.now() - (trendRange * 1000);
+
+    let histories = [];
+
+    if(trendSelectedTunnel === 'ALL'){
+        histories = Object.values(trendHistory);
+    }else{
+        if(trendHistory[trendSelectedTunnel]){
+            histories = [trendHistory[trendSelectedTunnel]];
+        }
+    }
+
+    const filtered = histories.map(history =>
+        history.filter(point => point.time >= cutoff)
+    );
+
+    if(!filtered.length){
+        return [];
+    }
+
+    if(trendSelectedTunnel !== 'ALL'){
+        return filtered[0].map(point => ({
+            time: point.time,
+            value: point[metric]
+        }));
+    }
+
+    const combined = {};
+
+    filtered.forEach(history => {
+        history.forEach(point => {
+
+            const second = Math.floor(point.time / 1000) * 1000;
+
+            if(!combined[second]){
+                combined[second] = {
+                    time: second,
+                    values: []
+                };
+            }
+
+            combined[second].values.push(point[metric]);
+        });
+    });
+
+    return Object.values(combined)
+        .sort((a,b) => a.time - b.time)
+        .map(point => ({
+            time: point.time,
+            value:
+                point.values.reduce((a,b) => a + b, 0)
+                / point.values.length
+        }));
+}
+
+
+function drawTrendChart(canvasId, series, label, sensorKey){
+
+    const canvas = document.getElementById(canvasId);
+
+    if(!canvas){
+        return;
+    }
+
+    const rect = canvas.getBoundingClientRect();
+    const dpr = window.devicePixelRatio || 1;
+
+    canvas.width = rect.width * dpr;
+    canvas.height = rect.height * dpr;
+
+    const ctx = canvas.getContext('2d');
+
+    ctx.scale(dpr,dpr);
+
+    const width = rect.width;
+    const height = rect.height;
+
+    ctx.clearRect(0,0,width,height);
+
+    ctx.fillStyle = '#0a1118';
+    ctx.fillRect(0,0,width,height);
+
+    if(!series.length){
+        ctx.fillStyle = '#71808e';
+        ctx.font = '12px Inter, Segoe UI, Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText(
+            'Collecting live data...',
+            width / 2,
+            height / 2
+        );
+        return;
+    }
+
+    const padding = {
+        left:42,
+        right:12,
+        top:15,
+        bottom:25
+    };
+
+    const graphWidth =
+        width - padding.left - padding.right;
+
+    const graphHeight =
+        height - padding.top - padding.bottom;
+
+    const values = series.map(point => point.value);
+
+    let min = Math.min(...values);
+    let max = Math.max(...values);
+
+    if(min === max){
+        min -= 1;
+        max += 1;
+    }
+
+    const range = max - min;
+
+    min -= range * 0.1;
+    max += range * 0.1;
+
+    ctx.strokeStyle = '#1c2935';
+    ctx.lineWidth = 1;
+
+    for(let i = 0; i <= 4; i++){
+
+        const y =
+            padding.top +
+            (graphHeight * i / 4);
+
+        ctx.beginPath();
+        ctx.moveTo(padding.left,y);
+        ctx.lineTo(width - padding.right,y);
+        ctx.stroke();
+    }
+
+    ctx.fillStyle = '#71808e';
+    ctx.font = '9px Inter, Segoe UI, Arial';
+    ctx.textAlign = 'right';
+
+    for(let i = 0; i <= 4; i++){
+
+        const value =
+            max -
+            ((max - min) * i / 4);
+
+        const y =
+            padding.top +
+            (graphHeight * i / 4);
+
+        ctx.fillText(
+            value.toFixed(1),
+            padding.left - 7,
+            y + 3
+        );
+    }
+
+    const latestPoint = series[series.length - 1];
+
+let trendColor = '#31d78e';
+
+if(latestPoint){
+    const level = getSensorLevel(sensorKey, latestPoint.value);
+
+    if(level === 'danger'){
+        trendColor = '#ff5858';
+    }
+    else if(level === 'warning'){
+        trendColor = '#ffbd3d';
+    }
+}
+
+ctx.strokeStyle = trendColor;
+
+    ctx.lineWidth = 2.5;
+    ctx.beginPath();
+
+    series.forEach((point,index) => {
+
+        const x =
+            padding.left +
+            (
+                index /
+                Math.max(series.length - 1,1)
+            ) *
+            graphWidth;
+
+        const y =
+            padding.top +
+            (
+                (max - point.value) /
+                (max - min)
+            ) *
+            graphHeight;
+
+        if(index === 0){
+            ctx.moveTo(x,y);
+        }else{
+            ctx.lineTo(x,y);
+        }
+    });
+
+    ctx.stroke();
+
+    const latest = series[series.length - 1];
+
+    ctx.fillStyle = trendColor;
+
+    const latestX =
+        padding.left + graphWidth;
+
+    const latestY =
+        padding.top +
+        (
+            (max - latest.value) /
+            (max - min)
+        ) *
+        graphHeight;
+
+    ctx.beginPath();
+    ctx.arc(latestX,latestY,3.5,0,Math.PI * 2);
+    ctx.fill();
+
+    ctx.fillStyle = '#71808e';
+    ctx.font = '9px Inter, Segoe UI, Arial';
+    ctx.textAlign = 'center';
+
+    ctx.fillText(
+        'OLDER',
+        padding.left,
+        height - 7
+    );
+
+    ctx.fillText(
+        'NOW',
+        width - padding.right,
+        height - 7
+    );
+}
+
+
+function renderTrendCharts(){
+
+    drawTrendChart(
+    'trend-co',
+    getTrendSeries('co'),
+    'CO',
+    'co'
+);
+
+    drawTrendChart(
+    'trend-temperature',
+    getTrendSeries('temperature'),
+    'Temperature',
+    'temperature'
+);
+
+    drawTrendChart(
+    'trend-smoke',
+    getTrendSeries('smoke_density'),
+    'Smoke',
+    'smoke_density'
+);
+
+    drawTrendChart(
+    'trend-airflow',
+    getTrendSeries('air_flow'),
+    'Air Flow',
+    'air_flow'
+);
+}
+
+
+function populateTrendTunnelSelector(){
+
+    const select =
+        document.getElementById('trend-tunnel');
+
+    if(!select){
+        return;
+    }
+
+    const previous = trendSelectedTunnel;
+
+    select.innerHTML =
+        '<option value="ALL">MINE AVERAGE</option>' +
+        Object.keys(trendHistory)
+            .sort()
+            .map(id =>
+                `<option value="${id}">${id}</option>`
+            )
+            .join('');
+
+    if(
+        previous === 'ALL' ||
+        trendHistory[previous]
+    ){
+        select.value = previous;
+    }else{
+        trendSelectedTunnel = 'ALL';
+        select.value = 'ALL';
+    }
+}
+
+
+function openTrends(){
+
+    populateTrendTunnelSelector();
+    renderTrendCharts();
+
+    const modal =
+        document.getElementById('trends-modal');
+
+    modal.classList.add('open');
+    modal.setAttribute('aria-hidden','false');
+}
+
+
+function closeTrends(){
+
+    const modal =
+        document.getElementById('trends-modal');
+
+    modal.classList.remove('open');
+    modal.setAttribute('aria-hidden','true');
+}
+
+
+document
+    .getElementById('view-trends-button')
+    .addEventListener('click',openTrends);
+
+document
+    .getElementById('trends-modal-close')
+    .addEventListener('click',closeTrends);
+
+document
+    .getElementById('trends-modal-close-2')
+    .addEventListener('click',closeTrends);
+
+document
+    .getElementById('trends-modal')
+    .addEventListener('click',e=>{
+        if(e.target.id === 'trends-modal'){
+            closeTrends();
+        }
+    });
+
+
+document
+    .getElementById('trend-tunnel')
+    .addEventListener('change',function(){
+
+        trendSelectedTunnel = this.value;
+
+        renderTrendCharts();
+    });
+
+
+document
+    .getElementById('trend-range')
+    .addEventListener('change',function(){
+
+        trendRange = Number(this.value);
+
+        renderTrendCharts();
+    });
+
+
+window.addEventListener('resize',()=>{
+
+    const modal =
+        document.getElementById('trends-modal');
+
+    if(modal && modal.classList.contains('open')){
+        renderTrendCharts();
+    }
+});
 
 function updateClock(){
     const now = new Date();
@@ -1229,6 +1838,17 @@ async function loadSensorData(){
         const sortedNodes = Object.values(data).sort(
             (a,b) => a.node_id.localeCompare(b.node_id)
         );
+        recordTrendData(sortedNodes);
+
+populateTrendTunnelSelector();
+
+if(
+    document
+        .getElementById('trends-modal')
+        ?.classList.contains('open')
+){
+    renderTrendCharts();
+}
 
         latestNodes = {};
 
