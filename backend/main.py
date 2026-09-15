@@ -168,3 +168,26 @@ def receive_sensor_data(data: dict):
 def get_sensor_data():
 
     return latest_readings
+
+# =========================================================
+# ROVER DATA
+# =========================================================
+
+latest_rover_data = {}
+
+
+@app.post("/rover-data")
+def receive_rover_data(data: dict):
+
+    latest_rover_data.update(data)
+
+    return {
+        "message": "Rover data received",
+        "data": latest_rover_data
+    }
+
+
+@app.get("/rover-data")
+def get_rover_data():
+
+    return latest_rover_data

@@ -4238,6 +4238,7 @@ let roverMissionStarted = false;
 let roverObstacleDetected = false;
 let roverEnvironmentAlerted = false;
 let roverAvoidingObstacle = false;
+let roverClimbingRubble = false;
 
 let roverSpeed = 2.2; // simulated meters per second
 let roverBattery = 100;
@@ -4245,9 +4246,20 @@ let roverBattery = 100;
 let roverStartTime = null;
 
 const ROVER_START_X = -18;
+
 const ROVER_OBSTACLE_X = 4;
 const ROVER_AVOID_X = 7;
-const ROVER_TARGET_X = 19;
+
+const ROVER_RUBBLE_START = 22;
+const ROVER_RUBBLE_END = 30;
+
+const ROVER_TARGET_X = 34;
+
+const ROVER_EXTRA_RUBBLE_PATCHES = [
+    { start: -11, end: -8, height: 0.9 },
+    { start: -3, end: 1, height: 1.3 },
+    { start: 9, end: 13, height: 1.0 }
+];
 
 
 /* =====================================================
@@ -4470,6 +4482,116 @@ function getRoverSensorLevel(
 
 }
 
+/* =====================================================
+   SEND ROVER TELEMETRY TO FASTAPI
+   ===================================================== */
+
+async function sendRoverData(){
+
+    if(!rover) return;
+
+    const position =
+        Math.max(
+            0,
+            Math.round(
+                rover.position.x - ROVER_START_X
+            )
+        );
+
+    const movement =
+        roverPaused
+            ? 'PAUSED'
+            : roverReturning
+                ? 'RETURNING'
+                : roverMoving
+                    ? (
+                        roverAvoidingObstacle
+                            ? 'CHANGING PATH'
+                            : 'FORWARD'
+                    )
+                    : 'STOPPED';
+
+    const mission =
+        roverMissionStarted
+            ? 'POST-COLLAPSE INSPECTION'
+            : 'STANDBY';
+
+    const data = {
+        rover_id: 'ROVER_01',
+
+        mission: mission,
+
+        position_m: position,
+
+        movement: movement,
+
+        obstacle:
+            roverObstacleDetected,
+
+        autonomous:
+            roverMoving &&
+            !roverPaused,
+
+        battery:
+            Math.round(roverBattery),
+
+        co:
+            roverSensorState.co,
+
+        temperature:
+            roverSensorState.temperature,
+
+        humidity:
+            roverSensorState.humidity,
+
+        smoke_density:
+            roverSensorState.smoke,
+
+        air_flow:
+            roverSensorState.airFlow,
+
+        timestamp:
+            new Date().toISOString()
+    };
+
+
+    try{
+
+        const response =
+            await fetch(
+                '/rover-data',
+                {
+                    method: 'POST',
+
+                    headers: {
+                        'Content-Type':
+                            'application/json'
+                    },
+
+                    body: JSON.stringify(data)
+                }
+            );
+
+
+        if(!response.ok){
+
+            throw new Error(
+                'Rover data upload failed'
+            );
+
+        }
+
+
+    }catch(error){
+
+        console.error(
+            'Rover telemetry error:',
+            error
+        );
+
+    }
+
+}
 
 function updateRoverSensors(){
 
@@ -4620,6 +4742,8 @@ function updateRoverSensors(){
      * has stopped.
      */
     updateRoverUI();
+
+    sendRoverData();
 
 }
 
@@ -4951,14 +5075,16 @@ function returnRoverToBase(){
 
 }
 
-
 /* =====================================================
    AUTONOMOUS NAVIGATION
    ===================================================== */
 
 function updateRoverMovement(delta){
 
-    /* Rover sensors update once per second */
+    /* -------------------------------------------------
+       Rover sensors update once per second
+       ------------------------------------------------- */
+
     if(
         performance.now() - roverSensorTimer >= 1000
     ){
@@ -4970,6 +5096,7 @@ function updateRoverMovement(delta){
 
     }
 
+
     if(
         !roverMoving ||
         roverPaused
@@ -4978,138 +5105,383 @@ function updateRoverMovement(delta){
     }
 
 
-    /* -----------------------------------------------
-   RETURN TO BASE
-   ----------------------------------------------- */
+    /* =================================================
+       RETURN TO BASE
+       ================================================= */
 
-if(roverReturning){
+    if(roverReturning){
 
-    const returnDistanceToObstacle =
-        Math.abs(
-            rover.position.x -
-            ROVER_OBSTACLE_X
-        );
+        /* ---------------------------------------------
+           BIG RUBBLE CLIMB ON RETURN
+           --------------------------------------------- */
 
-    /*
-     * Detect the same obstacle while returning.
-     */
-    if(
-        !roverAvoidingObstacle &&
-        !roverObstacleDetected &&
-        returnDistanceToObstacle < 3
-    ){
-
-        roverObstacleDetected = true;
-        roverAvoidingObstacle = true;
-
-        addRoverLog(
-            'Return path blocked — avoiding obstacle.'
-        );
-
-        updateRoverUI();
-    }
-
-
-    /*
-     * Move around the obstacle while returning.
-     */
-    if(roverAvoidingObstacle){
-
-        rover.position.z +=
-            (2.7 - rover.position.z) *
-            Math.min(delta * 2.5, 1);
-
-        rover.position.x -=
-            roverSpeed * delta;
-
-        rover.rotation.y =
-            Math.PI;
-
-
-        /*
-         * Once safely past the obstacle,
-         * return to the normal path.
-         */
         if(
-            rover.position.x <
-            ROVER_OBSTACLE_X - 3
+            rover.position.x >=
+            ROVER_RUBBLE_START - 1 &&
+
+            rover.position.x <=
+            ROVER_RUBBLE_END
         ){
 
+            if(!roverClimbingRubble){
+
+                roverClimbingRubble = true;
+                roverObstacleDetected = true;
+
+                addRoverLog(
+                    'Return route reached collapse rubble — rover climbing down.'
+                );
+
+                updateRoverUI();
+
+            }
+
+
+            const rubbleProgress =
+                (
+                    rover.position.x -
+                    ROVER_RUBBLE_START
+                ) /
+                (
+                    ROVER_RUBBLE_END -
+                    ROVER_RUBBLE_START
+                );
+
+
+            const safeProgress =
+                THREE.MathUtils.clamp(
+                    rubbleProgress,
+                    0,
+                    1
+                );
+
+
+            /*
+             * Smooth climb/down movement.
+             */
+            rover.position.y =
+                Math.sin(
+                    safeProgress * Math.PI
+                ) * 2.2;
+
+
+            /*
+             * Return direction.
+             */
+            rover.position.x -=
+                roverSpeed * delta;
+
+
+            /*
+             * Slight body tilt.
+             */
+            rover.rotation.z =
+                Math.cos(
+                    safeProgress * Math.PI
+                ) * 0.16;
+
+
+            rover.rotation.y =
+                Math.PI;
+
+
+            /*
+             * Fully clear of big rubble.
+             */
+            if(
+                rover.position.x <
+                ROVER_RUBBLE_START
+            ){
+
+                roverClimbingRubble = false;
+                roverObstacleDetected = false;
+
+                rover.position.y = 0;
+                rover.rotation.z = 0;
+
+                addRoverLog(
+                    'Collapse rubble cleared — return route resumed.'
+                );
+
+                updateRoverUI();
+
+            }
+
+
+        }else{
+
+            /* -----------------------------------------
+               EXTRA RUBBLE PATCHES ON RETURN
+               ----------------------------------------- */
+
+            const returnPatch =
+                ROVER_EXTRA_RUBBLE_PATCHES
+                    .slice()
+                    .reverse()
+                    .find(
+                        patch =>
+                            rover.position.x <= patch.end &&
+                            rover.position.x >= patch.start - 0.8
+                    );
+
+
+            if(returnPatch){
+
+                if(!roverClimbingRubble){
+
+                    roverClimbingRubble = true;
+                    roverObstacleDetected = true;
+
+                    addRoverLog(
+                        'Traversable rubble on return route — rover climbing.'
+                    );
+
+                    updateRoverUI();
+
+                }
+
+
+                const progress =
+                    THREE.MathUtils.clamp(
+                        (
+                            rover.position.x -
+                            returnPatch.start
+                        ) /
+                        (
+                            returnPatch.end -
+                            returnPatch.start
+                        ),
+                        0,
+                        1
+                    );
+
+
+                rover.position.y =
+                    Math.sin(
+                        progress * Math.PI
+                    ) *
+                    returnPatch.height;
+
+
+                rover.position.x -=
+                    roverSpeed * delta;
+
+
+                rover.rotation.z =
+                    Math.cos(
+                        progress * Math.PI
+                    ) * 0.12;
+
+
+                rover.rotation.y =
+                    Math.PI;
+
+
+            }else{
+
+                /* -------------------------------------
+                   RED OBSTACLE ON RETURN
+                   ------------------------------------- */
+
+                const distanceToObstacle =
+                    Math.abs(
+                        rover.position.x -
+                        ROVER_OBSTACLE_X
+                    );
+
+
+                if(
+                    !roverAvoidingObstacle &&
+                    !roverClimbingRubble &&
+                    !roverObstacleDetected &&
+                    distanceToObstacle < 3
+                ){
+
+                    roverObstacleDetected = true;
+                    roverAvoidingObstacle = true;
+
+                    addRoverLog(
+                        'Return path blocked — avoiding red-rock obstacle.'
+                    );
+
+                    updateRoverUI();
+
+                }
+
+
+                /* -------------------------------------
+                   AVOID RED OBSTACLE
+                   ------------------------------------- */
+
+                if(roverAvoidingObstacle){
+
+                    rover.position.z +=
+                        (
+                            -2.7 -
+                            rover.position.z
+                        ) *
+                        Math.min(
+                            delta * 2.5,
+                            1
+                        );
+
+
+                    rover.position.x -=
+                        roverSpeed * delta;
+
+
+                    rover.position.y +=
+                        (
+                            0 -
+                            rover.position.y
+                        ) *
+                        Math.min(
+                            delta * 4,
+                            1
+                        );
+
+
+                    rover.rotation.y =
+                        Math.PI;
+
+
+                    if(
+                        rover.position.x <
+                        ROVER_OBSTACLE_X - 3
+                    ){
+
+                        roverAvoidingObstacle = false;
+                        roverObstacleDetected = false;
+
+                        rover.position.z = 0;
+
+                        addRoverLog(
+                            'Red-rock obstacle cleared — return route resumed.'
+                        );
+
+                        updateRoverUI();
+
+                    }
+
+                }else{
+
+                    /* ---------------------------------
+                       NORMAL RETURN
+                       --------------------------------- */
+
+                    rover.position.x -=
+                        roverSpeed * delta;
+
+
+                    rover.position.z +=
+                        (
+                            0 -
+                            rover.position.z
+                        ) *
+                        Math.min(
+                            delta * 2,
+                            1
+                        );
+
+
+                    rover.position.y +=
+                        (
+                            0 -
+                            rover.position.y
+                        ) *
+                        Math.min(
+                            delta * 4,
+                            1
+                        );
+
+
+                    rover.rotation.z = 0;
+
+                    rover.rotation.y =
+                        Math.PI;
+
+
+                    /*
+                     * Check the extra rubble after
+                     * leaving one patch.
+                     */
+                    if(roverClimbingRubble){
+
+                        roverClimbingRubble = false;
+                        roverObstacleDetected = false;
+
+                    }
+
+                }
+
+            }
+
+        }
+
+
+        /* ---------------------------------------------
+           BASE REACHED
+           --------------------------------------------- */
+
+        if(
+            rover.position.x <=
+            ROVER_START_X
+        ){
+
+            rover.position.x =
+                ROVER_START_X;
+
+            rover.position.y = 0;
+            rover.position.z = 0;
+
+            rover.rotation.x = 0;
+            rover.rotation.y = 0;
+            rover.rotation.z = 0;
+
+            roverMoving = false;
+            roverReturning = false;
+            roverMissionStarted = false;
+
+            roverClimbingRubble = false;
             roverAvoidingObstacle = false;
             roverObstacleDetected = false;
 
+            roverBattery =
+                Math.max(
+                    0,
+                    roverBattery - 2
+                );
+
             addRoverLog(
-                'Obstacle cleared — return path resumed.'
+                'Rover reached base successfully.'
             );
 
             updateRoverUI();
+
         }
 
-    }else{
-
-        /*
-         * Normal return-to-base movement.
-         */
-        rover.position.x -=
-            roverSpeed * delta;
-
-        rover.position.z +=
-            (0 - rover.position.z) *
-            Math.min(delta * 2, 1);
-
-        rover.rotation.y =
-            Math.PI;
-    }
-
-
-    /*
-     * Reached base.
-     */
-    if(
-        rover.position.x <=
-        ROVER_START_X
-    ){
-
-        rover.position.x =
-            ROVER_START_X;
-
-        rover.position.z = 0;
-
-        rover.rotation.y = 0;
-
-        roverMoving = false;
-        roverReturning = false;
-        roverMissionStarted = false;
 
         roverBattery =
             Math.max(
                 0,
-                roverBattery - 2
+                roverBattery -
+                delta * 0.08
             );
 
-        addRoverLog(
-            'Rover reached base successfully.'
-        );
 
         updateRoverUI();
+
+        return;
     }
 
 
-    roverBattery =
-        Math.max(
-            0,
-            roverBattery -
-            delta * 0.08
-        );
-
-    updateRoverUI();
-
-    return;
-}
+    /* =================================================
+       FORWARD MISSION
+       ================================================= */
 
 
     /* -----------------------------------------------
-       OBSTACLE DETECTION
+       RED OBSTACLE
        ----------------------------------------------- */
 
     const distanceToObstacle =
@@ -5121,18 +5493,16 @@ if(roverReturning){
 
     if(
         !roverObstacleDetected &&
+        !roverClimbingRubble &&
         distanceToObstacle < 3
     ){
 
         roverObstacleDetected = true;
-
         roverAvoidingObstacle = true;
 
-
         addRoverLog(
-            'Obstacle detected — calculating alternate path.'
+            'Obstacle detected — selecting safe alternate path.'
         );
-
 
         updateRoverUI();
 
@@ -5140,25 +5510,41 @@ if(roverReturning){
 
 
     /* -----------------------------------------------
-       AVOID OBSTACLE
+       AVOID RED OBSTACLE
        ----------------------------------------------- */
 
     if(roverAvoidingObstacle){
 
-        /* Move around the obstacle */
-
         rover.position.z +=
-            (2.7 - rover.position.z) *
-            Math.min(delta * 2.5, 1);
+            (
+                2.7 -
+                rover.position.z
+            ) *
+            Math.min(
+                delta * 2.5,
+                1
+            );
 
 
         rover.position.x +=
             roverSpeed * delta;
 
 
+        rover.position.y +=
+            (
+                0 -
+                rover.position.y
+            ) *
+            Math.min(
+                delta * 4,
+                1
+            );
+
+
         rover.rotation.y =
             Math.sin(
-                performance.now() * 0.002
+                performance.now() *
+                0.002
             ) * 0.04;
 
 
@@ -5168,44 +5554,204 @@ if(roverReturning){
         ){
 
             roverAvoidingObstacle = false;
+            roverObstacleDetected = false;
+
+            rover.position.z = 0;
 
             addRoverLog(
-                'Alternate route cleared — continuing mission.'
+                'Red-rock obstacle cleared — returning to main route.'
             );
-
-
-            roverObstacleDetected = false;
 
             updateRoverUI();
 
         }
 
+
     }else{
 
+
         /* -------------------------------------------
-           NORMAL FORWARD MOVEMENT
+           FIND FORWARD RUBBLE PATCH
            ------------------------------------------- */
 
-        rover.position.x +=
-            roverSpeed * delta;
+        let activePatch = null;
 
 
-        /* Return to tunnel center */
+        for(
+            const patch of
+            ROVER_EXTRA_RUBBLE_PATCHES
+        ){
 
-        rover.position.z +=
-            (0 - rover.position.z) *
-            Math.min(delta * 2, 1);
+            if(
+                rover.position.x >=
+                patch.start &&
+
+                rover.position.x <=
+                patch.end
+            ){
+
+                activePatch = patch;
+                break;
+
+            }
+
+        }
 
 
-        rover.rotation.y =
-            0;
+        /* -------------------------------------------
+           BIG COLLAPSE RUBBLE
+           ------------------------------------------- */
+
+        if(
+            !activePatch &&
+
+            rover.position.x >=
+            ROVER_RUBBLE_START &&
+
+            rover.position.x <=
+            ROVER_RUBBLE_END
+        ){
+
+            activePatch = {
+                start:
+                    ROVER_RUBBLE_START,
+
+                end:
+                    ROVER_RUBBLE_END,
+
+                height:
+                    2.2
+            };
+
+        }
+
+
+        /* -------------------------------------------
+           CLIMB RUBBLE
+           ------------------------------------------- */
+
+        if(activePatch){
+
+            if(!roverClimbingRubble){
+
+                roverClimbingRubble = true;
+                roverObstacleDetected = true;
+
+                addRoverLog(
+                    activePatch.height > 2
+                        ? 'Large collapse rubble detected — tracked rover climbing.'
+                        : 'Traversable rubble detected — tracked rover climbing.'
+                );
+
+                updateRoverUI();
+
+            }
+
+
+            const progress =
+                THREE.MathUtils.clamp(
+                    (
+                        rover.position.x -
+                        activePatch.start
+                    ) /
+                    (
+                        activePatch.end -
+                        activePatch.start
+                    ),
+                    0,
+                    1
+                );
+
+
+            /*
+             * Raise rover over rubble.
+             */
+            rover.position.y =
+                Math.sin(
+                    progress *
+                    Math.PI
+                ) *
+                activePatch.height;
+
+
+            rover.position.x +=
+                roverSpeed *
+                delta;
+
+
+            /*
+             * Tilt while climbing.
+             */
+            rover.rotation.z =
+                -Math.cos(
+                    progress *
+                    Math.PI
+                ) *
+                0.16;
+
+
+            rover.rotation.y = 0;
+
+
+        }else{
+
+
+            /* ---------------------------------------
+               NORMAL FORWARD MOVEMENT
+               --------------------------------------- */
+
+            rover.position.x +=
+                roverSpeed *
+                delta;
+
+
+            rover.position.z +=
+                (
+                    0 -
+                    rover.position.z
+                ) *
+                Math.min(
+                    delta * 2,
+                    1
+                );
+
+
+            rover.position.y +=
+                (
+                    0 -
+                    rover.position.y
+                ) *
+                Math.min(
+                    delta * 4,
+                    1
+                );
+
+
+            rover.rotation.z = 0;
+            rover.rotation.y = 0;
+
+
+            if(roverClimbingRubble){
+
+                roverClimbingRubble = false;
+                roverObstacleDetected = false;
+
+                addRoverLog(
+                    'Rubble cleared — rover continuing mission.'
+                );
+
+                updateRoverUI();
+
+            }
+
+        }
 
     }
 
 
-    /* -----------------------------------------------
-       REACH COLLAPSE ZONE
-       ----------------------------------------------- */
+    /* =================================================
+       REACH INSPECTION ZONE
+       ================================================= */
 
     if(
         rover.position.x >=
@@ -5215,19 +5761,24 @@ if(roverReturning){
         rover.position.x =
             ROVER_TARGET_X;
 
-        roverMoving = false;
+        rover.position.y = 0;
+        rover.position.z = 0;
 
+        rover.rotation.x = 0;
+        rover.rotation.y = 0;
+        rover.rotation.z = 0;
+
+        roverMoving = false;
         roverPaused = false;
 
         roverAvoidingObstacle = false;
+        roverClimbingRubble = false;
 
         roverObstacleDetected = true;
 
-
         addRoverLog(
-            'Collapse zone reached — environmental inspection active.'
+            'Inspection zone reached — environmental scan active.'
         );
-
 
         updateRoverUI();
 
