@@ -80,6 +80,305 @@ html{scroll-behavior:smooth}
         grid-template-columns:1fr;
     }
 }
+
+/* =========================================================
+   ROVER OPERATIONS
+   ========================================================= */
+
+.rover-panel{
+    margin-top:14px;
+}
+
+.rover-header-meta{
+    display:flex;
+    align-items:center;
+    gap:9px;
+    flex-wrap:wrap;
+}
+
+.rover-status-badge{
+    padding:6px 9px;
+    border-radius:8px;
+    font-size:10px;
+    font-weight:800;
+    border:1px solid rgba(49,215,142,.35);
+    color:var(--green);
+    background:rgba(49,215,142,.08);
+}
+
+.rover-layout{
+    display:grid;
+    grid-template-columns:1.8fr 1fr;
+    gap:14px;
+}
+
+.rover-view{
+    min-height:400px;
+    background:
+        radial-gradient(circle at 50% 45%, rgba(66,185,255,.08), transparent 38%),
+        linear-gradient(145deg,#091119,#060b10);
+    border:1px solid #243341;
+    border-radius:13px;
+    overflow:hidden;
+    position:relative;
+}
+
+.rover-view-top{
+    position:absolute;
+    top:12px;
+    left:12px;
+    right:12px;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    gap:10px;
+    z-index:3;
+}
+
+.rover-view-title{
+    padding:7px 10px;
+    border-radius:8px;
+    background:rgba(7,11,16,.82);
+    border:1px solid #263846;
+    font-size:10px;
+    font-weight:800;
+    color:#dce7ef;
+}
+
+.rover-view-mode{
+    padding:7px 10px;
+    border-radius:8px;
+    background:rgba(66,185,255,.08);
+    border:1px solid rgba(66,185,255,.28);
+    color:var(--blue);
+    font-size:10px;
+    font-weight:800;
+}
+
+.rover-scene{
+    width:100%;
+    height:100%;
+    min-height:400px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    position:relative;
+}
+
+/* Temporary 3D placeholder */
+.rover-scene-placeholder{
+    width:90%;
+    height:75%;
+    border:1px dashed #314554;
+    border-radius:12px;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    gap:10px;
+    background:
+        linear-gradient(rgba(66,185,255,.025) 1px,transparent 1px),
+        linear-gradient(90deg,rgba(66,185,255,.025) 1px,transparent 1px);
+    background-size:28px 28px;
+}
+
+.rover-scene-placeholder .rover-icon{
+    font-size:58px;
+    filter:drop-shadow(0 0 15px rgba(66,185,255,.25));
+}
+
+.rover-scene-placeholder strong{
+    font-size:14px;
+    letter-spacing:.5px;
+}
+
+.rover-scene-placeholder span{
+    font-size:10px;
+    color:#71808e;
+}
+
+.rover-side{
+    display:grid;
+    grid-template-rows:auto auto 1fr;
+    gap:12px;
+}
+
+.rover-card{
+    background:#101a24;
+    border:1px solid #243341;
+    border-radius:11px;
+    padding:13px;
+}
+
+.rover-card h4{
+    margin:0 0 10px;
+    font-size:11px;
+    color:#60eaa9;
+    letter-spacing:.7px;
+}
+
+.rover-telemetry{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:8px;
+}
+
+.rover-metric{
+    background:#0c151e;
+    border:1px solid #1d2b37;
+    border-radius:9px;
+    padding:9px;
+}
+
+.rover-metric-label{
+    color:#748392;
+    font-size:9px;
+    letter-spacing:.5px;
+}
+
+.rover-metric-value{
+    margin-top:4px;
+    font-size:12px;
+    font-weight:800;
+}
+
+.rover-metric-value.safe{color:var(--green)}
+.rover-metric-value.warning{color:var(--yellow)}
+.rover-metric-value.danger{color:var(--red)}
+.rover-metric-value.blue{color:var(--blue)}
+
+.rover-mission-grid{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:8px;
+}
+
+.rover-info-row{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    gap:10px;
+    padding:7px 0;
+    border-bottom:1px solid #1b2731;
+    font-size:10px;
+}
+
+.rover-info-row:last-child{
+    border-bottom:0;
+}
+
+.rover-info-row span{
+    color:#7c8b99;
+}
+
+.rover-info-row strong{
+    color:#e4ebf0;
+}
+
+.rover-controls{
+    display:flex;
+    flex-wrap:wrap;
+    gap:8px;
+}
+
+.rover-button{
+    border:1px solid #3a4b59;
+    background:#0d1720;
+    color:#dfe8ef;
+    border-radius:9px;
+    padding:8px 10px;
+    cursor:pointer;
+    font-size:10px;
+    font-weight:800;
+    transition:.2s;
+}
+
+.rover-button:hover{
+    background:#17232e;
+    border-color:#5a6c7c;
+}
+
+.rover-button.primary{
+    color:var(--green);
+    border-color:rgba(49,215,142,.4);
+    background:rgba(49,215,142,.06);
+}
+
+.rover-button.danger{
+    color:var(--red);
+    border-color:rgba(255,88,88,.4);
+    background:rgba(255,88,88,.06);
+}
+
+.rover-log{
+    max-height:120px;
+    overflow:auto;
+    display:grid;
+    gap:6px;
+}
+
+.rover-log-entry{
+    padding:7px 8px;
+    border-radius:7px;
+    background:#0b141d;
+    border:1px solid #1b2935;
+    font-size:9px;
+    color:#aebbc6;
+}
+
+.rover-log-entry strong{
+    color:#dfe8ef;
+}
+
+.rover-bottom{
+    margin-top:12px;
+    display:grid;
+    grid-template-columns:1fr 1fr 1fr 1fr;
+    gap:10px;
+}
+
+.rover-bottom-box{
+    background:#101a24;
+    border:1px solid #243341;
+    border-radius:10px;
+    padding:10px;
+}
+
+.rover-bottom-label{
+    font-size:9px;
+    color:#748392;
+    letter-spacing:.5px;
+}
+
+.rover-bottom-value{
+    margin-top:4px;
+    font-size:12px;
+    font-weight:800;
+}
+
+@media(max-width:1000px){
+    .rover-layout{
+        grid-template-columns:1fr;
+    }
+
+    .rover-bottom{
+        grid-template-columns:1fr 1fr;
+    }
+}
+
+@media(max-width:700px){
+    .rover-telemetry,
+    .rover-mission-grid,
+    .rover-bottom{
+        grid-template-columns:1fr;
+    }
+
+    .rover-view,
+    .rover-scene{
+        min-height:330px;
+    }
+}
+
 body{
     margin:0;
     font-family:Inter,Segoe UI,Arial,sans-serif;
@@ -844,6 +1143,290 @@ h1{margin:0;font-size:28px;letter-spacing:1px}
     </div>
 
 </div>
+
+</section>
+
+<!-- =====================================================
+     ROVER OPERATIONS
+     ===================================================== -->
+
+<section class="panel rover-panel">
+
+    <div class="panel-title">
+        <h2>🤖 Rover Operations</h2>
+
+        <div class="rover-header-meta">
+            <span class="muted">AUTONOMOUS RESCUE ROVER</span>
+            <span id="rover-status-badge" class="rover-status-badge">
+                ● IDLE
+            </span>
+        </div>
+    </div>
+
+    <!-- Rover top status strip -->
+<div class="rover-bottom" style="margin-bottom:12px;">
+
+    <div class="rover-bottom-box">
+        <div class="rover-bottom-label">
+            ROVER STATE
+        </div>
+
+        <div id="rover-bottom-state"
+             class="rover-bottom-value">
+            IDLE
+        </div>
+    </div>
+
+
+    <div class="rover-bottom-box">
+        <div class="rover-bottom-label">
+            AUTONOMOUS NAVIGATION
+        </div>
+
+        <div id="rover-autonomy"
+             class="rover-bottom-value"
+             style="color:var(--green);">
+            READY
+        </div>
+    </div>
+
+
+    <div class="rover-bottom-box">
+        <div class="rover-bottom-label">
+            CURRENT TARGET
+        </div>
+
+        <div id="rover-target"
+             class="rover-bottom-value">
+            NONE
+        </div>
+    </div>
+
+
+    <div class="rover-bottom-box">
+        <div class="rover-bottom-label">
+            LAST UPDATE
+        </div>
+
+        <div id="rover-last-update"
+             class="rover-bottom-value">
+            --
+        </div>
+    </div>
+
+</div>
+
+    <div class="rover-layout">
+
+        <!-- 3D VIEW -->
+        <div class="rover-view">
+
+            <div class="rover-view-top">
+                <div class="rover-view-title">
+                    POST-COLLAPSE INSPECTION
+                </div>
+
+                <div id="rover-mode-label" class="rover-view-mode">
+                    AUTONOMOUS MODE
+                </div>
+            </div>
+
+            <div id="rover-scene" class="rover-scene">
+
+                <!-- Temporary placeholder.
+                     Three.js 3D simulation will go here next. -->
+
+                <div class="rover-scene-placeholder">
+
+                    <div class="rover-icon">🤖</div>
+
+                    <strong>
+                        3D ROVER SIMULATION
+                    </strong>
+
+                    <span>
+                        Mine environment and autonomous navigation will appear here
+                    </span>
+
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <!-- RIGHT SIDE -->
+        <div class="rover-side">
+
+            <!-- TELEMETRY -->
+            <div class="rover-card">
+
+                <h4>LIVE ROVER TELEMETRY</h4>
+
+                <div class="rover-telemetry">
+
+                    <div class="rover-metric">
+                        <div class="rover-metric-label">
+                            CO GAS
+                        </div>
+
+                        <div id="rover-co"
+                             class="rover-metric-value safe">
+                            -- ppm
+                        </div>
+                    </div>
+
+
+                    <div class="rover-metric">
+                        <div class="rover-metric-label">
+                            TEMPERATURE
+                        </div>
+
+                        <div id="rover-temp"
+                             class="rover-metric-value safe">
+                            -- °C
+                        </div>
+                    </div>
+
+
+                    <div class="rover-metric">
+                        <div class="rover-metric-label">
+                            SMOKE
+                        </div>
+
+                        <div id="rover-smoke"
+                             class="rover-metric-value safe">
+                            -- %
+                        </div>
+                    </div>
+
+
+                    <div class="rover-metric">
+                        <div class="rover-metric-label">
+                            HUMIDITY
+                        </div>
+
+                        <div id="rover-humidity"
+                             class="rover-metric-value safe">
+                            -- %
+                        </div>
+                    </div>
+
+
+                    <div class="rover-metric">
+                        <div class="rover-metric-label">
+                            AIR FLOW
+                        </div>
+
+                        <div id="rover-airflow"
+                             class="rover-metric-value safe">
+                            -- m/s
+                        </div>
+                    </div>
+
+
+                    <div class="rover-metric">
+                        <div class="rover-metric-label">
+                            BATTERY
+                        </div>
+
+                        <div id="rover-battery"
+                             class="rover-metric-value blue">
+                            100 %
+                        </div>
+                    </div>
+
+                </div>
+
+            </div>
+
+
+            <!-- MISSION INFO -->
+            <div class="rover-card">
+
+                <h4>MISSION STATUS</h4>
+
+                <div class="rover-info-row">
+                    <span>Mission</span>
+                    <strong id="rover-mission">
+                        STANDBY
+                    </strong>
+                </div>
+
+                <div class="rover-info-row">
+                    <span>Position</span>
+                    <strong id="rover-position">
+                        BASE
+                    </strong>
+                </div>
+
+                <div class="rover-info-row">
+                    <span>Movement</span>
+                    <strong id="rover-movement">
+                        STOPPED
+                    </strong>
+                </div>
+
+                <div class="rover-info-row">
+                    <span>Obstacle</span>
+                    <strong id="rover-obstacle">
+                        CLEAR
+                    </strong>
+                </div>
+
+            </div>
+
+
+            <!-- CONTROLS + LOG -->
+            <div class="rover-card">
+
+                <h4>ROVER CONTROL</h4>
+
+                <div class="rover-controls">
+
+                    <button id="rover-deploy-button"
+                            class="rover-button primary"
+                            type="button">
+                        🚀 DEPLOY ROVER
+                    </button>
+
+                    <button id="rover-pause-button"
+                            class="rover-button"
+                            type="button">
+                        ⏸ PAUSE
+                    </button>
+
+                    <button id="rover-return-button"
+                            class="rover-button danger"
+                            type="button">
+                        ↩ RETURN TO BASE
+                    </button>
+
+                </div>
+
+
+                <div style="margin-top:12px;margin-bottom:8px;">
+                    <span style="font-size:9px;color:#748392;letter-spacing:.6px;">
+                        ROVER ACTIVITY LOG
+                    </span>
+                </div>
+
+                <div id="rover-log" class="rover-log">
+
+                    <div class="rover-log-entry">
+                        <strong>System:</strong>
+                        Rover awaiting deployment.
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+
 
 </section>
 
