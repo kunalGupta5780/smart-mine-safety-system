@@ -4226,49 +4226,1129 @@ roverSceneElement.addEventListener(
     { passive: false }
 );
 
-
     /* =====================================================
-       ANIMATION
-       ===================================================== */
+   AUTONOMOUS ROVER MOVEMENT
+   ===================================================== */
 
-    function animate(){
+let roverMoving = false;
+let roverPaused = false;
+let roverReturning = false;
 
-        requestAnimationFrame(
-            animate
+let roverMissionStarted = false;
+let roverObstacleDetected = false;
+let roverEnvironmentAlerted = false;
+let roverAvoidingObstacle = false;
+
+let roverSpeed = 2.2; // simulated meters per second
+let roverBattery = 100;
+
+let roverStartTime = null;
+
+const ROVER_START_X = -18;
+const ROVER_OBSTACLE_X = 4;
+const ROVER_AVOID_X = 7;
+const ROVER_TARGET_X = 19;
+
+
+/* =====================================================
+   CREATE VISIBLE OBSTACLE MARKER
+   ===================================================== */
+
+const obstacleGroup = new THREE.Group();
+
+const obstacleMaterial =
+    new THREE.MeshStandardMaterial({
+        color: 0x5b2020,
+        roughness: 1
+    });
+
+const obstacleBody =
+    new THREE.Mesh(
+        new THREE.DodecahedronGeometry(1.2, 0),
+        obstacleMaterial
+    );
+
+obstacleBody.position.y = 1;
+
+obstacleGroup.add(obstacleBody);
+
+
+const obstacleLight =
+    new THREE.PointLight(
+        0xff5858,
+        2.5,
+        6
+    );
+
+obstacleLight.position.y = 1.5;
+
+obstacleGroup.add(obstacleLight);
+
+
+obstacleGroup.position.set(
+    ROVER_OBSTACLE_X,
+    0,
+    0
+);
+
+scene.add(obstacleGroup);
+
+/* =====================================================
+   ROVER SENSOR SIMULATION
+   ===================================================== */
+
+let roverSensorTimer = 0;
+
+const roverSensorState = {
+    co: 12,
+    temperature: 27,
+    humidity: 55,
+    smoke: 3,
+    airFlow: 2.8
+};
+
+
+function clamp(value, min, max){
+    return Math.max(min, Math.min(max, value));
+}
+
+
+/*
+ * Generate environmental conditions based on rover
+ * position inside the simulated mine.
+ */
+function getRoverEnvironment(){
+
+    const distance =
+        Math.max(
+            0,
+            rover.position.x - ROVER_START_X
+        );
+
+    /*
+     * 0 → 1 across the rover's mission.
+     */
+    const progress =
+        clamp(
+            distance /
+            (ROVER_TARGET_X - ROVER_START_X),
+            0,
+            1
         );
 
 
-        /* Camera orbit */
+    /*
+     * Base environment.
+     */
+    let co =
+        10 +
+        progress * 10;
 
-        camera.position.x =
-            cameraTarget.x +
-            Math.cos(cameraAngle) *
-            cameraDistance;
+    let temperature =
+        26 +
+        progress * 5;
 
-        camera.position.z =
-            cameraTarget.z +
-            Math.sin(cameraAngle) *
-            cameraDistance;
+    let humidity =
+        54 +
+        progress * 6;
 
-        camera.position.y =
-            cameraHeight;
+    let smoke =
+        2 +
+        progress * 5;
 
-
-        camera.lookAt(
-            cameraTarget
-        );
+    let airFlow =
+        2.9 -
+        progress * 0.55;
 
 
-        renderer.render(
-            scene,
-            camera
+    /*
+     * Hazard zone.
+     *
+     * Once the rover gets near the collapse area,
+     * environmental conditions become significantly worse.
+     */
+    if(distance >= 25){
+
+        const hazardProgress =
+            clamp(
+                (distance - 25) / 12,
+                0,
+                1
+            );
+
+        co =
+            20 +
+            hazardProgress * 25;
+
+        temperature =
+            30 +
+            hazardProgress * 8;
+
+        humidity =
+            58 +
+            hazardProgress * 8;
+
+        smoke =
+            7 +
+            hazardProgress * 18;
+
+        airFlow =
+            2.2 -
+            hazardProgress * 1.0;
+
+    }
+
+
+    /*
+     * Small sensor fluctuation so the readings don't
+     * look artificially frozen.
+     */
+    co +=
+        (Math.random() - 0.5) * 2;
+
+    temperature +=
+        (Math.random() - 0.5) * 0.8;
+
+    humidity +=
+        (Math.random() - 0.5) * 2;
+
+    smoke +=
+        (Math.random() - 0.5) * 1.5;
+
+    airFlow +=
+        (Math.random() - 0.5) * 0.12;
+
+
+    return {
+        co: Math.round(clamp(co, 0, 100)),
+        temperature: Math.round(clamp(temperature, 15, 60)),
+        humidity: Math.round(clamp(humidity, 0, 100)),
+        smoke: Math.round(clamp(smoke, 0, 50)),
+        airFlow: Number(
+            clamp(airFlow, 0.5, 5)
+                .toFixed(1)
+        )
+    };
+
+}
+
+
+function getRoverSensorLevel(
+    key,
+    value
+){
+
+    if(key === 'co'){
+
+        if(value > 40) return 'danger';
+        if(value > 30) return 'warning';
+
+    }
+
+    if(key === 'temperature'){
+
+        if(value > 33) return 'danger';
+        if(value > 30) return 'warning';
+
+    }
+
+    if(key === 'smoke'){
+
+        if(value > 20) return 'danger';
+        if(value > 10) return 'warning';
+
+    }
+
+    if(key === 'airFlow'){
+
+        if(value < 1.5) return 'danger';
+        if(value < 2.0) return 'warning';
+
+    }
+
+    return 'safe';
+
+}
+
+
+function updateRoverSensors(){
+
+    if(!rover) return;
+
+
+    const readings =
+        getRoverEnvironment();
+
+
+    roverSensorState.co =
+        readings.co;
+
+    roverSensorState.temperature =
+        readings.temperature;
+
+    roverSensorState.humidity =
+        readings.humidity;
+
+    roverSensorState.smoke =
+        readings.smoke;
+
+    roverSensorState.airFlow =
+        readings.airFlow;
+
+
+    /*
+     * Update telemetry elements.
+     */
+    const coEl =
+        document.getElementById('rover-co');
+
+    const tempEl =
+        document.getElementById('rover-temp');
+
+    const humidityEl =
+        document.getElementById('rover-humidity');
+
+    const smokeEl =
+        document.getElementById('rover-smoke');
+
+    const airflowEl =
+        document.getElementById('rover-airflow');
+
+
+    if(coEl){
+
+        coEl.textContent =
+            `${readings.co} ppm`;
+
+        coEl.className =
+            `rover-metric-value ${
+                getRoverSensorLevel(
+                    'co',
+                    readings.co
+                )
+            }`;
+
+    }
+
+
+    if(tempEl){
+
+        tempEl.textContent =
+            `${readings.temperature} °C`;
+
+        tempEl.className =
+            `rover-metric-value ${
+                getRoverSensorLevel(
+                    'temperature',
+                    readings.temperature
+                )
+            }`;
+
+    }
+
+
+    if(smokeEl){
+
+        smokeEl.textContent =
+            `${readings.smoke} %`;
+
+        smokeEl.className =
+            `rover-metric-value ${
+                getRoverSensorLevel(
+                    'smoke',
+                    readings.smoke
+                )
+            }`;
+
+    }
+
+
+    if(humidityEl){
+
+        humidityEl.textContent =
+            `${readings.humidity} %`;
+
+        humidityEl.className =
+            'rover-metric-value safe';
+
+    }
+
+
+    if(airflowEl){
+
+        airflowEl.textContent =
+            `${readings.airFlow} m/s`;
+
+        airflowEl.className =
+            `rover-metric-value ${
+                getRoverSensorLevel(
+                    'airFlow',
+                    readings.airFlow
+                )
+            }`;
+
+    }
+
+
+    /*
+     * Add an environmental warning to the rover log
+     * when the rover reaches the hazardous zone.
+     */
+    const hazardDetected =
+        readings.co > 40 ||
+        readings.temperature > 33 ||
+        readings.smoke > 20 ||
+        readings.airFlow < 1.5;
+
+
+    if(
+        hazardDetected &&
+        !roverEnvironmentAlerted
+    ){
+
+        roverEnvironmentAlerted = true;
+
+        addRoverLog(
+            'Hazardous environment detected — transmitting sensor alert.'
         );
 
     }
 
 
-    animate();
+    /*
+     * Keep the sensor state visible even after movement
+     * has stopped.
+     */
+    updateRoverUI();
 
+}
+
+/* =====================================================
+   ROVER UI HELPERS
+   ===================================================== */
+
+const roverStatusBadge =
+    document.getElementById('rover-status-badge');
+
+const roverMission =
+    document.getElementById('rover-mission');
+
+const roverPosition =
+    document.getElementById('rover-position');
+
+const roverMovement =
+    document.getElementById('rover-movement');
+
+const roverObstacle =
+    document.getElementById('rover-obstacle');
+
+const roverBatteryEl =
+    document.getElementById('rover-battery');
+
+const roverBottomState =
+    document.getElementById('rover-bottom-state');
+
+const roverAutonomy =
+    document.getElementById('rover-autonomy');
+
+const roverTarget =
+    document.getElementById('rover-target');
+
+const roverLastUpdate =
+    document.getElementById('rover-last-update');
+
+const roverLog =
+    document.getElementById('rover-log');
+
+
+function addRoverLog(message){
+
+    if(!roverLog) return;
+
+    const time =
+        new Date().toLocaleTimeString();
+
+    const entry =
+        document.createElement('div');
+
+    entry.className =
+        'rover-log-entry';
+
+    entry.innerHTML =
+        `<strong>${time}</strong> — ${message}`;
+
+    roverLog.prepend(entry);
+
+
+    /* Keep the log short */
+
+    while(roverLog.children.length > 6){
+        roverLog.removeChild(
+            roverLog.lastElementChild
+        );
+    }
+}
+
+
+/* =====================================================
+   UPDATE ROVER UI
+   ===================================================== */
+
+function updateRoverUI(){
+
+    if(!rover) return;
+
+
+    const position =
+        Math.round(
+            rover.position.x -
+            ROVER_START_X
+        );
+
+
+    if(roverPosition){
+
+        roverPosition.textContent =
+            `${Math.max(0, position)} m`;
+
+    }
+
+
+    if(roverBatteryEl){
+
+        roverBatteryEl.textContent =
+            `${Math.max(0, Math.round(roverBattery))} %`;
+
+    }
+
+
+    if(roverLastUpdate){
+
+        roverLastUpdate.textContent =
+            new Date().toLocaleTimeString();
+
+    }
+
+
+    if(roverBottomState){
+
+        roverBottomState.textContent =
+            roverMoving
+                ? (roverPaused ? 'PAUSED' : 'AUTONOMOUS')
+                : roverReturning
+                    ? 'RETURNING'
+                    : 'IDLE';
+
+    }
+
+
+    if(roverAutonomy){
+
+        roverAutonomy.textContent =
+            roverMoving && !roverPaused
+                ? 'ACTIVE'
+                : 'READY';
+
+        roverAutonomy.style.color =
+            roverMoving && !roverPaused
+                ? 'var(--blue)'
+                : 'var(--green)';
+
+    }
+
+
+    if(roverStatusBadge){
+
+        const state =
+            roverMoving
+                ? (roverPaused ? '⏸ PAUSED' : '● AUTONOMOUS')
+                : roverReturning
+                    ? '↩ RETURNING'
+                    : '● IDLE';
+
+        roverStatusBadge.textContent = state;
+
+    }
+
+
+    if(roverMission){
+
+        roverMission.textContent =
+            roverMoving || roverMissionStarted
+                ? 'POST-COLLAPSE INSPECTION'
+                : 'STANDBY';
+
+    }
+
+
+    if(roverMovement){
+
+        roverMovement.textContent =
+            roverPaused
+                ? 'PAUSED'
+                : roverMoving
+                    ? (
+                        roverAvoidingObstacle
+                            ? 'CHANGING PATH'
+                            : roverReturning
+                                ? 'RETURNING'
+                                : 'FORWARD'
+                    )
+                    : 'STOPPED';
+
+    }
+
+
+    if(roverObstacle){
+
+        roverObstacle.textContent =
+            roverObstacleDetected
+                ? 'DETECTED'
+                : 'CLEAR';
+
+        roverObstacle.style.color =
+            roverObstacleDetected
+                ? 'var(--red)'
+                : 'var(--green)';
+
+    }
+
+
+    if(roverTarget){
+
+        roverTarget.textContent =
+            roverReturning
+                ? 'BASE'
+                : roverMissionStarted
+                    ? 'COLLAPSE ZONE'
+                    : 'NONE';
+
+    }
+
+}
+
+
+/* =====================================================
+   DEPLOY ROVER
+   ===================================================== */
+
+function deployRover(){
+
+    if(roverMoving){
+        return;
+    }
+
+
+    roverReturning = false;
+    roverPaused = false;
+    roverMissionStarted = true;
+    roverObstacleDetected = false;
+    roverEnvironmentAlerted = false;
+    roverAvoidingObstacle = false;
+
+    roverMoving = true;
+
+    roverStartTime =
+        performance.now();
+
+
+    /* Reset rover position */
+
+    rover.position.set(
+        ROVER_START_X,
+        0,
+        0
+    );
+
+
+    /* Reset battery */
+
+    roverBattery = 100;
+    roverSensorTimer = 0;
+updateRoverSensors();
+
+
+    addRoverLog(
+        'Rover deployed — autonomous mission started.'
+    );
+
+
+    addRoverLog(
+        'Mission: Post-collapse inspection.'
+    );
+
+
+    updateRoverUI();
+
+}
+
+
+/* =====================================================
+   PAUSE / RESUME
+   ===================================================== */
+
+function toggleRoverPause(){
+
+    if(!roverMoving){
+        return;
+    }
+
+
+    roverPaused =
+        !roverPaused;
+
+
+    if(roverPaused){
+
+        addRoverLog(
+            'Mission paused by operator.'
+        );
+
+    }else{
+
+        addRoverLog(
+            'Mission resumed — autonomous navigation active.'
+        );
+
+    }
+
+
+    updateRoverUI();
+
+}
+
+
+/* =====================================================
+   RETURN TO BASE
+   ===================================================== */
+
+function returnRoverToBase(){
+
+    if(
+        !roverMissionStarted &&
+        rover.position.x === ROVER_START_X
+    ){
+        return;
+    }
+
+
+    roverReturning = true;
+    roverPaused = false;
+    roverMoving = true;
+
+
+    roverObstacleDetected = false;
+    roverEnvironmentAlerted = false;
+    roverAvoidingObstacle = false;
+
+
+    addRoverLog(
+        'Return-to-base command received.'
+    );
+
+
+    updateRoverUI();
+
+}
+
+
+/* =====================================================
+   AUTONOMOUS NAVIGATION
+   ===================================================== */
+
+function updateRoverMovement(delta){
+
+    /* Rover sensors update once per second */
+    if(
+        performance.now() - roverSensorTimer >= 1000
+    ){
+
+        roverSensorTimer =
+            performance.now();
+
+        updateRoverSensors();
+
+    }
+
+    if(
+        !roverMoving ||
+        roverPaused
+    ){
+        return;
+    }
+
+
+    /* -----------------------------------------------
+   RETURN TO BASE
+   ----------------------------------------------- */
+
+if(roverReturning){
+
+    const returnDistanceToObstacle =
+        Math.abs(
+            rover.position.x -
+            ROVER_OBSTACLE_X
+        );
+
+    /*
+     * Detect the same obstacle while returning.
+     */
+    if(
+        !roverAvoidingObstacle &&
+        !roverObstacleDetected &&
+        returnDistanceToObstacle < 3
+    ){
+
+        roverObstacleDetected = true;
+        roverAvoidingObstacle = true;
+
+        addRoverLog(
+            'Return path blocked — avoiding obstacle.'
+        );
+
+        updateRoverUI();
+    }
+
+
+    /*
+     * Move around the obstacle while returning.
+     */
+    if(roverAvoidingObstacle){
+
+        rover.position.z +=
+            (2.7 - rover.position.z) *
+            Math.min(delta * 2.5, 1);
+
+        rover.position.x -=
+            roverSpeed * delta;
+
+        rover.rotation.y =
+            Math.PI;
+
+
+        /*
+         * Once safely past the obstacle,
+         * return to the normal path.
+         */
+        if(
+            rover.position.x <
+            ROVER_OBSTACLE_X - 3
+        ){
+
+            roverAvoidingObstacle = false;
+            roverObstacleDetected = false;
+
+            addRoverLog(
+                'Obstacle cleared — return path resumed.'
+            );
+
+            updateRoverUI();
+        }
+
+    }else{
+
+        /*
+         * Normal return-to-base movement.
+         */
+        rover.position.x -=
+            roverSpeed * delta;
+
+        rover.position.z +=
+            (0 - rover.position.z) *
+            Math.min(delta * 2, 1);
+
+        rover.rotation.y =
+            Math.PI;
+    }
+
+
+    /*
+     * Reached base.
+     */
+    if(
+        rover.position.x <=
+        ROVER_START_X
+    ){
+
+        rover.position.x =
+            ROVER_START_X;
+
+        rover.position.z = 0;
+
+        rover.rotation.y = 0;
+
+        roverMoving = false;
+        roverReturning = false;
+        roverMissionStarted = false;
+
+        roverBattery =
+            Math.max(
+                0,
+                roverBattery - 2
+            );
+
+        addRoverLog(
+            'Rover reached base successfully.'
+        );
+
+        updateRoverUI();
+    }
+
+
+    roverBattery =
+        Math.max(
+            0,
+            roverBattery -
+            delta * 0.08
+        );
+
+    updateRoverUI();
+
+    return;
+}
+
+
+    /* -----------------------------------------------
+       OBSTACLE DETECTION
+       ----------------------------------------------- */
+
+    const distanceToObstacle =
+        Math.abs(
+            rover.position.x -
+            ROVER_OBSTACLE_X
+        );
+
+
+    if(
+        !roverObstacleDetected &&
+        distanceToObstacle < 3
+    ){
+
+        roverObstacleDetected = true;
+
+        roverAvoidingObstacle = true;
+
+
+        addRoverLog(
+            'Obstacle detected — calculating alternate path.'
+        );
+
+
+        updateRoverUI();
+
+    }
+
+
+    /* -----------------------------------------------
+       AVOID OBSTACLE
+       ----------------------------------------------- */
+
+    if(roverAvoidingObstacle){
+
+        /* Move around the obstacle */
+
+        rover.position.z +=
+            (2.7 - rover.position.z) *
+            Math.min(delta * 2.5, 1);
+
+
+        rover.position.x +=
+            roverSpeed * delta;
+
+
+        rover.rotation.y =
+            Math.sin(
+                performance.now() * 0.002
+            ) * 0.04;
+
+
+        if(
+            rover.position.x >
+            ROVER_AVOID_X
+        ){
+
+            roverAvoidingObstacle = false;
+
+            addRoverLog(
+                'Alternate route cleared — continuing mission.'
+            );
+
+
+            roverObstacleDetected = false;
+
+            updateRoverUI();
+
+        }
+
+    }else{
+
+        /* -------------------------------------------
+           NORMAL FORWARD MOVEMENT
+           ------------------------------------------- */
+
+        rover.position.x +=
+            roverSpeed * delta;
+
+
+        /* Return to tunnel center */
+
+        rover.position.z +=
+            (0 - rover.position.z) *
+            Math.min(delta * 2, 1);
+
+
+        rover.rotation.y =
+            0;
+
+    }
+
+
+    /* -----------------------------------------------
+       REACH COLLAPSE ZONE
+       ----------------------------------------------- */
+
+    if(
+        rover.position.x >=
+        ROVER_TARGET_X
+    ){
+
+        rover.position.x =
+            ROVER_TARGET_X;
+
+        roverMoving = false;
+
+        roverPaused = false;
+
+        roverAvoidingObstacle = false;
+
+        roverObstacleDetected = true;
+
+
+        addRoverLog(
+            'Collapse zone reached — environmental inspection active.'
+        );
+
+
+        updateRoverUI();
+
+    }
+
+
+    /* -----------------------------------------------
+       BATTERY DRAIN
+       ----------------------------------------------- */
+
+    roverBattery =
+        Math.max(
+            0,
+            roverBattery -
+            delta * 0.18
+        );
+
+
+    updateRoverUI();
+
+}
+
+
+/* =====================================================
+   BUTTON EVENTS
+   ===================================================== */
+
+const deployButton =
+    document.getElementById(
+        'rover-deploy-button'
+    );
+
+const pauseButton =
+    document.getElementById(
+        'rover-pause-button'
+    );
+
+const returnButton =
+    document.getElementById(
+        'rover-return-button'
+    );
+
+
+if(deployButton){
+
+    deployButton.addEventListener(
+        'click',
+        deployRover
+    );
+
+}
+
+
+if(pauseButton){
+
+    pauseButton.addEventListener(
+        'click',
+        toggleRoverPause
+    );
+
+}
+
+
+if(returnButton){
+
+    returnButton.addEventListener(
+        'click',
+        returnRoverToBase
+    );
+
+}
+
+
+updateRoverUI();
+
+    /* =====================================================
+   ANIMATION
+   ===================================================== */
+
+const clock = new THREE.Clock();
+
+function animate(){
+
+    requestAnimationFrame(
+        animate
+    );
+
+    const delta =
+        Math.min(
+            clock.getDelta(),
+            0.05
+        );
+
+    updateRoverMovement(delta);
+
+    /* Camera orbit */
+
+    camera.position.x =
+        cameraTarget.x +
+        Math.cos(cameraAngle) *
+        cameraDistance;
+
+    camera.position.z =
+        cameraTarget.z +
+        Math.sin(cameraAngle) *
+        cameraDistance;
+
+    camera.position.y =
+        cameraHeight;
+
+    camera.lookAt(
+        cameraTarget
+    );
+
+    renderer.render(
+        scene,
+        camera
+    );
+}
+
+animate();
 
     /* =====================================================
        RESPONSIVE RESIZE
